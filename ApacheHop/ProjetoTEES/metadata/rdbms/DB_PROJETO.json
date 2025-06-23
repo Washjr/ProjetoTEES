@@ -1,0 +1,28 @@
+{
+  "virtualPath": "",
+  "rdbms": {
+    "POSTGRESQL": {
+      "databaseName": "BD_PROJETO",
+      "pluginId": "POSTGRESQL",
+      "accessType": 0,
+      "hostname": "127.0.0.1",
+      "password": "Encrypted 2be98afc86aa7f2e4cb79ce108fc0fc8e",
+      "pluginName": "PostgreSQL",
+      "port": "5445",
+      "attributes": {
+        "SUPPORTS_TIMESTAMP_DATA_TYPE": "Y",
+        "QUOTE_ALL_FIELDS": "N",
+        "EXTRA_OPTION_POSTGRESQL.stringtype": "unspecified",
+        "SUPPORTS_BOOLEAN_DATA_TYPE": "Y",
+        "FORCE_IDENTIFIERS_TO_LOWERCASE": "N",
+        "PRESERVE_RESERVED_WORD_CASE": "Y",
+        "SQL_CONNECT": "",
+        "FORCE_IDENTIFIERS_TO_UPPERCASE": "N",
+        "PREFERRED_SCHEMA_NAME": ""
+      },
+      "manualUrl": "",
+      "username": "postgres"
+    }
+  },
+  "name": "DB_PROJETO"
+}
