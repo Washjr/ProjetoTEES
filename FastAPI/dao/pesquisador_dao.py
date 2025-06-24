@@ -1,10 +1,10 @@
 from typing import List
-from banco.conexao_singleton import Conexao
+from banco.conexao import Conexao
 from model.pesquisador import Pesquisador
 from psycopg2 import IntegrityError
 
 # Obtém uma instância de conexão com o banco de dados
-conexao = Conexao().get_conexao()
+conexao = Conexao().obter_conexao()
 
 def listar_todos() -> List[Pesquisador]:
     """
