@@ -1,50 +1,68 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from typing import List
 from model.artigo import Artigo
-from controller.dao.producoes_dao import (
-    apagar_por_producao_id,
+from dao.artigo_dao import (    
     listar_todos,
-    salvar_nova_producao,
-    atualizar_por_id
+    salvar_novo_artigo,
+    atualizar_por_id,
+    apagar_por_id
 )
 
-# Criação de um router chamado 'pesquisador_router'
-artigo_router = APIRouter()
+artigo_router = APIRouter(prefix="/artigos", tags=["artigos"])
 
-# Rota para listar todos os artigos
-@artigo_router.get("/artigo", response_model = List[Artigo])
+@artigo_router.get(
+    "/", 
+    response_model = List[Artigo],
+    summary="Listar artigos",
+    description="Retorna todos os artigos cadastrados no sistema."
+)
 def listar():
-    producoes = listar_todos()
-    return producoes
+    return listar_todos()
 
-# Rota para salvar um novo artigo
-@artigo_router.post("/artigo", response_model = Artigo)
+
+@artigo_router.post(
+    "/",
+    response_model=Artigo,
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar artigo",
+    description="Cria um novo artigo e retorna o recurso criado com ID gerado. Retorna 409 em caso de conflito de chave ou 400 em erro genérico."
+)
 def adicionar(artigo: Artigo):
-    resposta = salvar_nova_producao(artigo)
-    
-    if 'duplicate' in resposta:
-        raise HTTPException(status_code=409, detail=resposta)
-    if 'Erro' in resposta:
-        raise HTTPException(status_code=400, detail=resposta)
-    
-    return artigo
+    try:
+        artigo_criado = salvar_novo_artigo(artigo)
+    except ValueError as e:        
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except RuntimeError as e:        
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return artigo_criado
 
-# Rota para atualizar um artigo com base em ID
-@artigo_router.put("/artigo/", response_model=Artigo)
-def atualizar(artigo: Artigo):
-    resposta = atualizar_por_id(artigo)
-    
-    if 'Erro' in resposta:
-        raise HTTPException(status_code=400, detail=resposta)
-    
-    return artigo
 
-# Rota para apagar um artigo com base em ID
-@artigo_router.delete("/artigo/{id_artigo}", response_model=str)
+@artigo_router.put(
+    "/{id_artigo}",
+    response_model=Artigo,
+    summary="Atualizar artigo",
+    description="Atualiza um artigo existente por ID e retorna o recurso atualizado. Retorna 404 se não encontrado ou 400 em erro."
+)
+def atualizar(id_artigo: str, artigo: Artigo):   
+    artigo.id_artigo = id_artigo 
+    try:
+        artigo_atualizado = atualizar_por_id(artigo)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return artigo_atualizado
+
+@artigo_router.delete(
+    "/{id_artigo}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Deletar artigo",
+    description="Remove um artigo existente por ID. Retorna 404 se não encontrado."
+)
 def apagar(id_artigo: str):
-    resposta = apagar_por_producao_id(id_artigo)
-    
-    if 'inválido' in resposta:
-        raise HTTPException(status_code=400, detail=resposta)
-    
-    return resposta
+    try:
+        apagar_por_id(id_artigo)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

@@ -1,63 +1,70 @@
-# controller/pesquisador_controller.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from typing import List
 from model.pesquisador import Pesquisador
-from controller.dao.pesquisador_dao import (
-    apagar_por_lattes_id,
+from dao.pesquisador_dao import (
     listar_todos,
     salvar_novo_pesquisador,
-    atualizar_por_id
+    atualizar_por_id,
+    apagar_por_id
 )
 
-# Criação de um router chamado 'pesquisador_router'
-pesquisador_router = APIRouter()
+pesquisador_router = APIRouter(prefix="/pesquisadores", tags=["pesquisadores"])
 
-# Rota para listar todos os pesquisadores
-@pesquisador_router.get("/pesquisador", response_model = List[Pesquisador])
+
+@pesquisador_router.get(
+    "/", 
+    response_model = List[Pesquisador],
+    summary="Listar pesquisadores",
+    description="Retorna todos os pesquisadores cadastrados no sistema."
+)
 def listar():
-    pesquisadores = listar_todos()
-    return pesquisadores
+    return listar_todos()
 
-# Rota para salvar um novo pesquisador
-@pesquisador_router.post("/pesquisador", response_model = Pesquisador)
+
+@pesquisador_router.post(
+    "/",
+    response_model=Pesquisador,
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar pesquisador",
+    description="Cria um novo pesquisador e retorna o recurso criado com ID gerado. Retorna 409 em caso de conflito de chave ou 400 em erro genérico."
+)
 def adicionar(pesquisador: Pesquisador):
-    resposta = salvar_novo_pesquisador(
-        nome = pesquisador.nome,
-        lattes_id = pesquisador.lattes_id,
-        articles = pesquisador.articles,
-        abstract = pesquisador.abstract
-        # ,
-        # pesquisador_id=pesquisador.pesquisadores_id       
-    )
-    
-    if 'duplicate' in resposta:
-        raise HTTPException(status_code=409, detail=resposta)
-    if 'Erro' in resposta:
-        raise HTTPException(status_code=400, detail=resposta)
-    
-    return pesquisador
+    try:
+        pesquisador_criado = salvar_novo_pesquisador(pesquisador)
+    except ValueError as e:        
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except RuntimeError as e:        
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return pesquisador_criado
 
-# Rota para atualizar um pesquisador com base no lattes_id
-@pesquisador_router.put("/pesquisador/{lattes_id}", response_model=Pesquisador)
-def atualizar(lattes_id: str, pesquisador: Pesquisador):
-    resposta = atualizar_por_id(
-        nome = pesquisador.nome,
-        pesquisadores_id = pesquisador.pesquisadores_id,
-        lattes_id = pesquisador.lattes_id,
-        abstract = pesquisador.abstract
-    )
-    
-    if 'Erro' in resposta:
-        raise HTTPException(status_code=400, detail=resposta)
-    
-    return pesquisador
 
-# Rota para apagar um pesquisador com base no lattes_id
-@pesquisador_router.delete("/pesquisador/{lattes_id}", response_model=str)
-def apagar(lattes_id: str):
-    resposta = apagar_por_lattes_id(lattes_id)
-    
-    if 'inválido' in resposta:
-        raise HTTPException(status_code=400, detail=resposta)
-    
-    return resposta
+@pesquisador_router.put(
+    "/{id_pesquisador}",
+    response_model=Pesquisador,
+    summary="Atualizar pesquisador",
+    description="Atualiza um pesquisador existente por ID e retorna o recurso atualizado. Retorna 404 se não encontrado ou 400 em erro."
+)
+def atualizar(id_pesquisador: str, pesquisador: Pesquisador):
+    pesquisador.id_pesquisador = id_pesquisador 
+    try:
+        pesquisador_atualizado = atualizar_por_id(pesquisador)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return pesquisador_atualizado
+
+
+@pesquisador_router.delete(
+    "/{id_pesquisador}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Deletar pesquisador",
+    description="Remove um pesquisador existente por ID. Retorna 404 se não encontrado."
+)
+def apagar(id_pesquisador: str):
+    try:
+        apagar_por_id(id_pesquisador)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
