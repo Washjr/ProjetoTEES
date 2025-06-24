@@ -1,10 +1,10 @@
 from typing import List
-from banco.conexao import Conexao
+from banco.conexao_db import Conexao
 from model.artigo import Artigo
 from psycopg2 import IntegrityError
 
 # Obtém uma instância de conexão com o banco de dados
-conexao = Conexao().obter_conexao()
+conexao = Conexao.obter_conexao()
 
 def listar_todos() -> List[Artigo]:  
     """

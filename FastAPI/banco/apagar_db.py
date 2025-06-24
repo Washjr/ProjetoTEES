@@ -1,24 +1,23 @@
 import logging
-from conexao import Conexao
+from banco.conexao_db import Conexao
 
-# Configurações de logging
-logging.basicConfig(level=logging.INFO)
+# Logging
 logger = logging.getLogger(__name__)
 
 # Script para remoção de tabelas e extensões
 script_sql = """
-    DROP TABLE IF EXISTS software;
-    DROP TABLE IF EXISTS patente;
-    DROP TABLE IF EXISTS livro;
-    DROP TABLE IF EXISTS artigo;
-    DROP TABLE IF EXISTS periodico;
-    DROP TABLE IF EXISTS instituicao;
-    DROP TABLE IF EXISTS pesquisador;
-    DROP EXTENSION IF EXISTS "uuid-ossp";
+DROP TABLE IF EXISTS software;
+DROP TABLE IF EXISTS patente;
+DROP TABLE IF EXISTS livro;
+DROP TABLE IF EXISTS artigo;
+DROP TABLE IF EXISTS periodico;
+DROP TABLE IF EXISTS instituicao;
+DROP TABLE IF EXISTS pesquisador;
+DROP EXTENSION IF EXISTS "uuid-ossp";
 """
 
 def main():
-    conexao = Conexao().obter_conexao()
+    conexao = Conexao.obter_conexao()
     try:
         with conexao.cursor() as cursor:
             logger.info("Executando script de teardown no banco de dados...")
