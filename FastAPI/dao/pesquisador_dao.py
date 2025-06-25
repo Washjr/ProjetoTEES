@@ -1,8 +1,9 @@
+import logging
 from typing import List, Dict
+from psycopg2 import IntegrityError
+
 from banco.conexao_db import Conexao
 from model.pesquisador import Pesquisador
-from psycopg2 import IntegrityError
-import logging
 
 logger = logging.getLogger(__name__)
 

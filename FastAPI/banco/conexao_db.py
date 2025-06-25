@@ -2,7 +2,7 @@ import threading
 import logging
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2 import OperationalError
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 # Configuração de ambiente para credenciais do banco (.env)
 class Configuracoes(BaseSettings):
@@ -104,9 +104,14 @@ class Conexao:
         Devolve a conexão ao pool.
         Se fechar=True, descarta a conexão.
         """
-        if cls._pool and conexao:
-            cls._pool.putconn(conexao, close=fechar)
-            logger.debug("Conexão devolvida ao pool: fechar=%s", fechar)
+        if cls._pool and not cls._pool.closed and conexao:
+            try:
+                cls._pool.putconn(conexao, close=fechar)
+                logger.debug("Conexão devolvida ao pool: fechar=%s", fechar)
+            except Exception as e:
+                logger.warning("Falha ao devolver conexão ao pool: %s", str(e))
+        else:
+            logger.debug("Pool fechado ou conexão ausente. Conexão não devolvida.")
 
     @classmethod
     def fechar_todas_conexoes(cls):
