@@ -1,143 +1,117 @@
-from typing import List
+from typing import List, Dict
 from banco.conexao_db import Conexao
 from model.pesquisador import Pesquisador
 from psycopg2 import IntegrityError
+import logging
 
-# Obtém uma instância de conexão com o banco de dados
-conexao = Conexao.obter_conexao()
+logger = logging.getLogger(__name__)
 
-def listar_todos() -> List[Pesquisador]:
+class PesquisadorDAO:
     """
-    Busca e retorna todos os pesquisadores cadastrados no banco.
-
-    Raises:
-        RuntimeError: se ocorrer erro genérico de banco de dados.
-
-    Returns:
-        List[Pesquisador]: lista de dicionários representando pesquisadores.
-    """  
-    sql: str = "SELECT id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes FROM pesquisador"
-    
-    try:
-        with conexao.cursor() as cursor:
-            cursor.execute(sql)
-            colunas = [desc[0] for desc in cursor.description]
-            resultado = cursor.fetchall()
-    except Exception as e:
-        raise RuntimeError(f"Erro ao listar pesquisadores: {e}")
-
-    return [dict(zip(colunas, linha)) for linha in resultado]
-
-
-def salvar_novo_pesquisador(pesquisador:Pesquisador) -> Pesquisador:
+    DAO para operações CRUD em pesquisadores.
+    Mantém uma conexão ao instanciar e devolve ao destruir.
     """
-    Insere um novo pesquisador no banco de dados.
+    def __init__(self):
+        self.conexao = Conexao.obter_conexao()
 
-    Args:
-        pesquisador (Pesquisador): objeto contendo os dados do pesquisador a ser salvo.
-
-    Raises:
-        ValueError: se ocorrer conflito de integridade (ex: chave duplicada).
-        RuntimeError: para outros erros de banco de dados.
-    """
-    sql = """
-        INSERT INTO pesquisador (nome, grau_academico, resumo, citacoes, id_orcid, id_lattes)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        RETURNING id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes
-    """
-    try:        
-        with conexao.cursor() as cursor:
-            cursor.execute(sql, (
-                pesquisador.nome, 
-                pesquisador.grau_academico, 
-                pesquisador.resumo, 
-                pesquisador.citacoes, 
-                pesquisador.id_orcid, 
-                pesquisador.id_lattes
-            ))
-            colunas = [desc[0] for desc in cursor.description]
-            resultado = cursor.fetchone()
-        conexao.commit()            
-        return dict(zip(colunas, resultado))
-
-    except IntegrityError as e:
-        conexao.rollback()
-        raise ValueError(f"Conflito ao salvar pesquisador: {e.diag.message_detail or e}")          
-    except Exception as e:
-        conexao.rollback()
-        raise RuntimeError(f"Erro ao salvar pesquisador: {e}")
-    
-
-def atualizar_por_id(pesquisador:Pesquisador) -> Pesquisador:
-    """
-    Atualiza um pesquisador existente com base no seu ID.
-
-    Args:
-        pesquisador (Pesquisador): objeto contendo dados atualizados; deve ter id_pesquisador.
-
-    Raises:
-        LookupError: se não encontrar o pesquisador para atualizar.
-        RuntimeError: para outros erros de banco de dados.
-    """
-
-    sql = """
-        UPDATE pesquisador
-        SET nome=%s, grau_academico=%s, resumo=%s, citacoes=%s, id_orcid=%s, id_lattes=%s
-        WHERE id_pesquisador=%s
-        RETURNING id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes
-    """
-    try:        
-        with conexao.cursor() as cursor:
-            cursor.execute(sql, (
-                pesquisador.nome, 
-                pesquisador.grau_academico, 
-                pesquisador.resumo, 
-                pesquisador.citacoes, 
-                pesquisador.id_orcid, 
-                pesquisador.id_lattes,
-                pesquisador.id_pesquisador
-            ))
-            if cursor.rowcount == 0:
-                raise LookupError("Pesquisador não encontrado para atualização.")
-            colunas = [d[0] for d in cursor.description]
-            resultado = cursor.fetchone()  
-        conexao.commit()            
-        return dict(zip(colunas, resultado))   
-
-    except LookupError:
-        conexao.rollback()
-        raise
-    except Exception as e:
-        conexao.rollback()
-        raise RuntimeError(f"Erro ao atualizar pesquisador: {e}")
+    def __del__(self):
+        Conexao.devolver_conexao(self.conexao)
 
 
-def apagar_por_id(id_pesquisador: str) -> None:
-    """
-    Remove um pesquisador do banco de dados dado seu ID.
+    def listar_pesquisadores(self) -> List[Dict]:        
+        sql = "SELECT id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes FROM pesquisador"
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql)
+                colunas = [desc[0] for desc in cursor.description]
+                linhas = cursor.fetchall()
+            return [dict(zip(colunas, linha)) for linha in linhas]
+        
+        except Exception as e:
+            logger.exception("Erro ao listar pesquisadores")
+            raise RuntimeError(f"Erro ao listar pesquisadores: {e}")
 
-    Args:
-        id_pesquisador (str): UUID do pesquisador a ser excluído.
 
-    Raises:
-        LookupError: se não encontrar o pesquisador para exclusão.
-        RuntimeError: para outros erros de banco de dados.
-    """
+    def salvar_pesquisador(self, pesquisador:Pesquisador) -> Dict:
+        sql = (
+            "INSERT INTO pesquisador (nome, grau_academico, resumo, citacoes, id_orcid, id_lattes) "
+            "VALUES (%s, %s, %s, %s, %s, %s) "
+            "RETURNING id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes "
+        )
+        try:        
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (
+                    pesquisador.nome, 
+                    pesquisador.grau_academico, 
+                    pesquisador.resumo, 
+                    pesquisador.citacoes, 
+                    pesquisador.id_orcid, 
+                    pesquisador.id_lattes
+                ))
+                colunas = [desc[0] for desc in cursor.description]
+                linha = cursor.fetchone()
+            self.conexao.commit()            
+            return dict(zip(colunas, linha))
 
-    sql = """
-            DELETE FROM pesquisador
-            WHERE id_pesquisador=%s
-        """
-    try:        
-        with conexao.cursor() as cursor:            
-            cursor.execute(sql, (id_pesquisador,))            
-            if cursor.rowcount == 0:
-                raise LookupError("Pesquisador não encontrado para exclusão.") 
-        conexao.commit()            
+        except IntegrityError as e:
+            self.conexao.rollback()
+            raise ValueError(f"Conflito ao salvar pesquisador: {e.diag.message_detail or e}")          
+        except Exception as e:
+            self.conexao.rollback()
+            logger.exception("Erro ao salvar pesquisador")
+            raise RuntimeError(f"Erro ao salvar pesquisador: {e}")
+        
 
-    except LookupError:
-        conexao.rollback()
-        raise
-    except Exception as e:        
-        conexao.rollback()
-        raise RuntimeError(f"Erro ao apagar pesquisador: {e}")
+    def atualizar_pesquisador(self, pesquisador:Pesquisador) -> Dict:
+        sql = (
+            "UPDATE pesquisador "
+            "SET nome=%s, grau_academico=%s, resumo=%s, citacoes=%s, id_orcid=%s, id_lattes=%s "
+            "WHERE id_pesquisador=%s "
+            "RETURNING id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes "
+        )
+        try:        
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (
+                    pesquisador.nome, 
+                    pesquisador.grau_academico, 
+                    pesquisador.resumo, 
+                    pesquisador.citacoes, 
+                    pesquisador.id_orcid, 
+                    pesquisador.id_lattes,
+                    pesquisador.id_pesquisador
+                ))
+                if cursor.rowcount == 0:
+                    raise LookupError("Pesquisador não encontrado para atualização.")
+                colunas = [desc[0] for desc in cursor.description]
+                linha = cursor.fetchone()  
+            self.conexao.commit()            
+            return dict(zip(colunas, linha))   
+
+        except LookupError:
+            self.conexao.rollback()
+            raise
+        except Exception as e:
+            self.conexao.rollback()
+            logger.exception("Erro ao atualizar pesquisador")
+            raise RuntimeError(f"Erro ao atualizar pesquisador: {e}")
+
+
+    def apagar_pesquisador(self, id_pesquisador: str) -> None:
+        sql = (
+            "DELETE FROM pesquisador "
+            "WHERE id_pesquisador=%s "
+        )
+        try:        
+            with self.conexao.cursor() as cursor:            
+                cursor.execute(sql, (id_pesquisador,))            
+                if cursor.rowcount == 0:
+                    raise LookupError("Pesquisador não encontrado para exclusão.") 
+            self.conexao.commit()            
+
+        except LookupError:
+            self.conexao.rollback()
+            raise
+        except Exception as e:        
+            self.conexao.rollback()
+            logger.exception("Erro ao apagar pesquisador")
+            raise RuntimeError(f"Erro ao apagar pesquisador: {e}")

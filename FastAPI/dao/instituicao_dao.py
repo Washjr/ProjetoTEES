@@ -2,133 +2,99 @@ from typing import List, Dict
 from banco.conexao_db import Conexao
 from model.instituicao import Instituicao
 from psycopg2 import IntegrityError
+import logging
 
-def listar_todas() -> List[Dict]:  
+logger = logging.getLogger(__name__)
+
+class InstituicaoDAO:
     """
-    Busca e retorna todas as instituições cadastradas no banco.
-
-    Raises:
-        RuntimeError: se ocorrer erro genérico de banco de dados.
-
-    Returns:
-        List[Dict]: lista de dicionários representando instituições.
+    DAO para operações de CRUD em instituições.
+    Mantém uma conexão ao instanciar e devolve ao destruir.
     """
-    sql = "SELECT id_instituicao, nome FROM instituicao"
-    conn = Conexao.obter_conexao()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(sql)
-            cols = [d[0] for d in cursor.description]
-            rows = cursor.fetchall()
-        return [dict(zip(cols, row)) for row in rows]
+    def __init__(self):
+        self.conexao = Conexao.obter_conexao()
 
-    except Exception as e:
-        raise RuntimeError(f"Erro ao listar instituições: {e}")
-    finally:
-        Conexao.devolver_conexao(conn)
+    def __del__(self):
+        Conexao.devolver_conexao(self.conexao)
 
 
-def salvar_nova(instituicao: Instituicao) -> Dict:
-    """
-    Insere uma nova instituição no banco de dados.
+    def listar_instituicoes(self) -> List[Dict]: 
+        sql = "SELECT id_instituicao, nome FROM instituicao"
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql)
+                colunas = [desc[0] for desc in cursor.description]
+                linhas = cursor.fetchall()
+            return [dict(zip(colunas, linha)) for linha in linhas]
 
-    Args:
-        instituicao (Instituicao): objeto contendo os dados da instituição.
-
-    Raises:
-        ValueError: se ocorrer conflito de integridade (ex: nome duplicado).
-        RuntimeError: para outros erros de banco de dados.
-
-    Returns:
-        Dict: dicionário representando a instituição inserida (com id).  
-    """
-    sql = (
-        "INSERT INTO instituicao (nome) VALUES (%s) "
-        "RETURNING id_instituicao, nome"
-    )
-    conn = Conexao.obter_conexao()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(sql, (instituicao.nome,))
-            cols = [d[0] for d in cursor.description]
-            row = cursor.fetchone()
-        conn.commit()
-        return dict(zip(cols, row))
-
-    except IntegrityError as e:
-        conn.rollback()
-        raise ValueError(f"Conflito ao salvar instituição: {e.diag.message_detail or e}")
-    except Exception as e:
-        conn.rollback()
-        raise RuntimeError(f"Erro ao salvar instituição: {e}")
-    finally:
-        Conexao.devolver_conexao(conn)
+        except Exception as e:
+            logger.exception("Erro ao listar instituições")
+            raise RuntimeError(f"Erro ao listar instituições: {e}")
 
 
-def atualizar_por_id(inst: Instituicao) -> Dict:
-    """
-    Atualiza uma instituição existente com base no seu ID.
+    def salvar_instituicao(self, instituicao: Instituicao) -> Dict:
+        sql = (
+            "INSERT INTO instituicao (nome) VALUES (%s) "
+            "RETURNING id_instituicao, nome"
+        )
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (instituicao.nome,))
+                colunas = [desc[0] for desc in cursor.description]
+                linha = cursor.fetchone()
+            self.conexao.commit()
+            return dict(zip(colunas, linha))
 
-    Args:
-        inst (Instituicao): objeto com id_instituicao e nome.
-
-    Raises:
-        LookupError: se não encontrar a instituição para atualização.
-        RuntimeError: para outros erros de banco de dados.
-
-    Returns:
-        Dict: dicionário representando a instituição atualizada.
-    """
-    sql = (
-        "UPDATE instituicao SET nome=%s "
-        "WHERE id_instituicao=%s "
-        "RETURNING id_instituicao, nome"
-    )
-    conn = Conexao.obter_conexao()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(sql, (inst.nome, inst.id_instituicao))
-            if cursor.rowcount == 0:
-                raise LookupError("Instituição não encontrada para atualização.")
-            cols = [d[0] for d in cursor.description]
-            row = cursor.fetchone()
-        conn.commit()
-        return dict(zip(cols, row))
-
-    except LookupError:
-        conn.rollback()
-        raise
-    except Exception as e:
-        conn.rollback()
-        raise RuntimeError(f"Erro ao atualizar instituição: {e}")
-    finally:
-        Conexao.devolver_conexao(conn)
+        except IntegrityError as e:
+            self.conexao.rollback()
+            raise ValueError(f"Conflito ao salvar instituição: {e.diag.message_detail or e}")
+        except Exception as e:
+            self.conexao.rollback()
+            logger.exception("Erro ao salvar instituição")
+            raise RuntimeError(f"Erro ao salvar instituição: {e}")
 
 
-def apagar_por_id(id_instituicao: str) -> None:
-    """
-    Remove uma instituição do banco de dados dado seu ID.
+    def atualizar_instituicao(self, instituicao: Instituicao) -> Dict:
+        sql = (
+            "UPDATE instituicao SET nome=%s "
+            "WHERE id_instituicao=%s "
+            "RETURNING id_instituicao, nome"
+        )        
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (instituicao.nome, instituicao.id_instituicao))
+                if cursor.rowcount == 0:
+                    raise LookupError("Instituição não encontrada para atualização.")
+                colunas = [desc[0] for desc in cursor.description]
+                linha = cursor.fetchone()
+            self.conexao.commit()
+            return dict(zip(colunas, linha))
 
-    Args:
-        id_instituicao (str): UUID da instituição a ser excluída.
+        except LookupError:
+            self.conexao.rollback()
+            raise
+        except Exception as e:
+            self.conexao.rollback()
+            logger.exception("Erro ao atualizar instituição")
+            raise RuntimeError(f"Erro ao atualizar instituição: {e}")
 
-    Raises:
-        LookupError: se não encontrar a instituição para exclusão.
-        RuntimeError: para outros erros de banco de dados.
-    """
-    sql = "DELETE FROM instituicao WHERE id_instituicao=%s"
-    conn = Conexao.obter_conexao()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(sql, (id_instituicao,))
-            if cursor.rowcount == 0:
-                raise LookupError("Instituição não encontrada para exclusão.")
-        conn.commit()
-    except LookupError:
-        conn.rollback()
-        raise
-    except Exception as e:
-        conn.rollback()
-        raise RuntimeError(f"Erro ao apagar instituição: {e}")
-    finally:
-        Conexao.devolver_conexao(conn)
+
+    def apagar_instituicao(self, id_instituicao: str) -> None:
+        sql = (
+            "DELETE FROM instituicao "
+            "WHERE id_instituicao=%s "
+        )        
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (id_instituicao,))
+                if cursor.rowcount == 0:                    
+                    raise LookupError("Instituição não encontrada para exclusão.")
+            self.conexao.commit()
+
+        except LookupError:
+            self.conexao.rollback()
+            raise
+        except Exception as e:
+            self.conexao.rollback()
+            logger.exception("Erro ao apagar instituição")
+            raise RuntimeError(f"Erro ao apagar instituição: {e}")

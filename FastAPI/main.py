@@ -7,7 +7,13 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from controller.artigo_controller import artigo_router
+from controller.instituicao_controller import instituicao_router
+from controller.livro_controller import livro_router
+from controller.patente_controller import patente_router
+from controller.periodico_controller import periodico_router
 from controller.pesquisador_controller import pesquisador_router
+from controller.software_controller import software_router
+
 from banco.conexao_db import Conexao
 
 # Configuração de logging
@@ -16,32 +22,42 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s"
 )
 
-# Lifespan
+# Definição do ciclo de vida da aplicação
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Conexao.inicializar_pool()
     yield
     Conexao.fechar_todas_conexoes()
 
-# Cria a aplicação FastAPI com lifespan
-app = FastAPI(lifespan=lifespan)
+# Criação da aplicação FastAPI
+app = FastAPI(
+    title="Sistema de Produção Acadêmica",
+    description="API para gerenciamento de pesquisadores, produções científicas e instituições.",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
-# Routers
-app.include_router(pesquisador_router, prefix="/pesquisadores")
-app.include_router(artigo_router, prefix="/artigos")
+# Registro dos routers
+app.include_router(artigo_router)
+app.include_router(instituicao_router)
+app.include_router(livro_router)
+app.include_router(patente_router)
+app.include_router(periodico_router)
+app.include_router(pesquisador_router)
+app.include_router(software_router)
 
-# Montagem de arquivos estáticos (css, js, imagens, index.html)
+# Montagem de arquivos estáticos (HTML, CSS, JS, etc.)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Página inicial
+# Endpoint de página inicial
 @app.get("/", response_class=HTMLResponse)
-async def index():
+async def index() -> str:
     path = Path("static/index.html")
     if not path.is_file():
         raise HTTPException(status_code=500, detail="Página inicial não encontrada")
     return path.read_text(encoding="utf-8")
 
-# Health-check
+# Endpoint de health-check
 @app.get("/health")
-def health():
+def health() -> dict:
     return {"status": "ok"}

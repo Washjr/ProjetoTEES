@@ -2,139 +2,113 @@ from typing import List, Dict
 from banco.conexao_db import Conexao
 from model.livro import Livro
 from psycopg2 import IntegrityError
+import logging
 
+logger = logging.getLogger(__name__)
 
-def listar_todos() -> List[Dict]:
+class LivroDAO:
     """
-    Busca e retorna todos os livros cadastrados no banco.
-
-    Raises:
-        RuntimeError: em caso de erro genérico de banco.
-
-    Returns:
-        List[Dict]: lista de livros.
+    DAO para operações de CRUD em livros.
+    Mantém uma conexão ao instanciar e devolve ao destruir.
     """
-    sql = "SELECT id_livro, nome_livro, ano, nome_editora, isbn, id_pesquisador FROM livro"
-    conn = Conexao.obter_conexao()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(sql)
-            cols = [d[0] for d in cursor.description]
-            rows = cursor.fetchall()
-        return [dict(zip(cols, row)) for row in rows]
-    except Exception as e:
-        raise RuntimeError(f"Erro ao listar livros: {e}")
-    finally:
-        Conexao.devolver_conexao(conn)
+    def __init__(self):
+        self.conexao = Conexao.obter_conexao()
+
+    def __del__(self):
+        Conexao.devolver_conexao(self.conexao)
+
+    def listar_livros(self) -> List[Dict]:
+        sql = "SELECT id_livro, nome_livro, ano, nome_editora, isbn, id_pesquisador FROM livro"
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql)
+                colunas = [desc[0] for desc in cursor.description]
+                linhas = cursor.fetchall()
+            return [dict(zip(colunas, linha)) for linha in linhas]
+        
+        except Exception as e:
+            logger.exception("Erro ao listar livros")
+            raise RuntimeError(f"Erro ao listar livros: {e}")
 
 
-def salvar_novo_livro(livro: Livro) -> Dict:
-    """
-    Insere um novo livro no banco.
-
-    Args:
-        livro (Livro): dados do livro.
-
-    Raises:
-        ValueError: em caso de conflito (ex: ISBN duplicado).
-        RuntimeError: em outros erros de banco.
-
-    Returns:
-        Dict: livro inserido, incluindo id.
-    """
-    sql = (
-        "INSERT INTO livro (nome_livro, ano, nome_editora, isbn, id_pesquisador) "
-        "VALUES (%s, %s, %s, %s, %s) "
-        "RETURNING id_livro, nome_livro, ano, nome_editora, isbn, id_pesquisador"
-    )
-    conn = Conexao.obter_conexao()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(sql, (
-                livro.nome_livro,
-                livro.ano,
-                livro.nome_editora,
-                livro.isbn,
-                livro.id_pesquisador
-            ))
-            cols = [d[0] for d in cursor.description]
-            row = cursor.fetchone()
-        conn.commit()
-        return dict(zip(cols, row))
-    except IntegrityError as e:
-        conn.rollback()
-        raise ValueError(f"Conflito ao salvar livro: {e.diag.message_detail or e}")
-    except Exception as e:
-        conn.rollback()
-        raise RuntimeError(f"Erro ao salvar livro: {e}")
-    finally:
-        Conexao.devolver_conexao(conn)
+    def salvar_livro(self, livro: Livro) -> Dict:
+        sql = (
+            "INSERT INTO livro (nome_livro, ano, nome_editora, isbn, id_pesquisador) "
+            "VALUES (%s, %s, %s, %s, %s) "
+            "RETURNING id_livro, nome_livro, ano, nome_editora, isbn, id_pesquisador"
+        )
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (
+                    livro.nome_livro,
+                    livro.ano,
+                    livro.nome_editora,
+                    livro.isbn,
+                    livro.id_pesquisador
+                ))
+                colunas = [desc[0] for desc in cursor.description]
+                linha = cursor.fetchone()
+            self.conexao.commit()
+            return dict(zip(colunas, linha))
+        
+        except IntegrityError as e:
+            self.conexao.rollback()
+            raise ValueError(f"Conflito ao salvar livro: {e.diag.message_detail or e}")
+        except Exception as e:
+            self.conexao.rollback()
+            logger.exception("Erro ao salvar livro")
+            raise RuntimeError(f"Erro ao salvar livro: {e}")
 
 
-def atualizar_por_id(livro: Livro) -> Dict:
-    """
-    Atualiza um livro existente pelo ID.
-
-    Raises:
-        LookupError: se não encontrar o livro.
-        RuntimeError: em outros erros de banco.
-
-    Returns:
-        Dict: livro atualizado.
-    """
-    sql = (
-        "UPDATE livro SET nome_livro=%s, ano=%s, nome_editora=%s, isbn=%s, id_pesquisador=%s "
-        "WHERE id_livro=%s "
-        "RETURNING id_livro, nome_livro, ano, nome_editora, isbn, id_pesquisador"
-    )
-    conn = Conexao.obter_conexao()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(sql, (
-                livro.nome_livro,
-                livro.ano,
-                livro.nome_editora,
-                livro.isbn,
-                livro.id_pesquisador,
-                livro.id_livro
-            ))
-            if cursor.rowcount == 0:
-                raise LookupError("Livro não encontrado para atualização.")
-            cols = [d[0] for d in cursor.description]
-            row = cursor.fetchone()
-        conn.commit()
-        return dict(zip(cols, row))
-    except LookupError:
-        conn.rollback()
-        raise
-    except Exception as e:
-        conn.rollback()
-        raise RuntimeError(f"Erro ao atualizar livro: {e}")
-    finally:
-        Conexao.devolver_conexao(conn)
+    def atualizar_livro(self, livro: Livro) -> Dict:
+        sql = (
+            "UPDATE livro "
+            "SET nome_livro=%s, ano=%s, nome_editora=%s, isbn=%s, id_pesquisador=%s "
+            "WHERE id_livro=%s "
+            "RETURNING id_livro, nome_livro, ano, nome_editora, isbn, id_pesquisador"
+        )
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (
+                    livro.nome_livro,
+                    livro.ano,
+                    livro.nome_editora,
+                    livro.isbn,
+                    livro.id_pesquisador,
+                    livro.id_livro
+                ))
+                if cursor.rowcount == 0:
+                    raise LookupError("Livro não encontrado para atualização.")
+                colunas = [desc[0] for desc in cursor.description]
+                linha = cursor.fetchone()
+            self.conexao.commit()
+            return dict(zip(colunas, linha))
+        
+        except LookupError:
+            self.conexao.rollback()
+            raise
+        except Exception as e:
+            self.conexao.rollback()
+            logger.exception("Erro ao atualizar livro")
+            raise RuntimeError(f"Erro ao atualizar livro: {e}")
 
 
-def apagar_por_id(id_livro: str) -> None:
-    """
-    Remove um livro pelo ID.
+    def apagar_livro(self, id_livro: str) -> None:
+        sql = (
+            "DELETE FROM livro "
+            "WHERE id_livro=%s "
+        )
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (id_livro,))
+                if cursor.rowcount == 0:
+                    raise LookupError("Livro não encontrado para exclusão.")
+            self.conexao.commit()
 
-    Raises:
-        LookupError: se não encontrar o livro.
-        RuntimeError: em outros erros.
-    """
-    sql = "DELETE FROM livro WHERE id_livro=%s"
-    conn = Conexao.obter_conexao()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(sql, (id_livro,))
-            if cursor.rowcount == 0:
-                raise LookupError("Livro não encontrado para exclusão.")
-        conn.commit()
-    except LookupError:
-        conn.rollback()
-        raise
-    except Exception as e:
-        conn.rollback()
-        raise RuntimeError(f"Erro ao apagar livro: {e}")
-    finally:
-        Conexao.devolver_conexao(conn)
+        except LookupError:
+            self.conexao.rollback()
+            raise
+        except Exception as e:
+            self.conexao.rollback()
+            logger.exception("Erro ao apagar livro")
+            raise RuntimeError(f"Erro ao apagar livro: {e}")
