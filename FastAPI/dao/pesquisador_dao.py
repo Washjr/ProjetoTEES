@@ -4,6 +4,7 @@ from psycopg2 import IntegrityError
 
 from banco.conexao_db import Conexao
 from model.pesquisador import Pesquisador
+from foto_lattes import buscar_codigo_lattes, baixar_foto_pesquisador
 
 logger = logging.getLogger(__name__)
 
@@ -116,3 +117,56 @@ class PesquisadorDAO:
             self.conexao.rollback()
             logger.exception("Erro ao apagar pesquisador")
             raise RuntimeError(f"Erro ao apagar pesquisador: {e}")
+        
+        
+    def sincronizar_fotos(self) -> None:
+        """
+        Para cada pesquisador com id_lattes e sem foto sincronizada,
+        tenta obter o código K, baixar a foto e, em qualquer caso,
+        marca foto_sincronizado = TRUE para não tentar de novo.
+        """
+        sql_consulta = """
+            SELECT id_pesquisador, id_lattes
+            FROM pesquisador
+            WHERE id_lattes IS NOT NULL AND foto_sincronizada = FALSE
+        """
+        sql_atualizacao = """
+            UPDATE pesquisador
+            SET foto_sincronizada = TRUE
+            WHERE id_pesquisador = %s
+        """
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql_consulta)
+                pesquisadores = cursor.fetchall()
+
+            logger.info(f"{len(pesquisadores)} pesquisadores sem foto sincronizada encontrados.")
+
+            for id_pesq, id_lattes in pesquisadores:
+                try:
+                    codigo_k = buscar_codigo_lattes(id_lattes)
+                except Exception:
+                    codigo_k = None
+                    logger.exception(f"Erro ao buscar código K para Lattes {id_lattes}")
+
+                if codigo_k:
+                    try:
+                        sucesso = baixar_foto_pesquisador(codigo_k, id_lattes)
+                        if not sucesso:
+                            logger.warning(f"Falha ao baixar foto para pesquisador {id_pesq}")
+                    except Exception:
+                        logger.exception(f"Erro ao baixar foto para pesquisador {id_pesq}")
+                else:
+                    logger.warning(f"Código K não encontrado para pesquisador {id_pesq}")
+
+                try:
+                    with self.conexao.cursor() as cursor:
+                        cursor.execute(sql_atualizacao, (id_pesq,))
+                    self.conexao.commit()
+                except Exception:
+                    self.conexao.rollback()
+                    logger.exception(f"Erro ao atualizar flag de sincronização para {id_pesq}")
+
+        except Exception:
+            logger.exception("Erro inesperado na sincronização de fotos")
+            raise RuntimeError("Erro ao sincronizar fotos de pesquisadores")

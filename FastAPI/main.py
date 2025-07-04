@@ -15,6 +15,7 @@ from controller.pesquisador_controller import pesquisador_router
 from controller.software_controller import software_router
 
 from dao.artigo_dao import ArtigoDAO
+from dao.pesquisador_dao import PesquisadorDAO
 from banco.conexao_db import Conexao
 
 # Configuração de logging
@@ -27,10 +28,8 @@ logging.basicConfig(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Conexao.inicializar_pool()
-    try:
-        ArtigoDAO().sincronizar_resumos()
-    except Exception:
-        logging.exception("Falha ao sincronizar resumos na inicialização")
+    ArtigoDAO().sincronizar_resumos()
+    PesquisadorDAO().sincronizar_fotos()
     yield
     Conexao.fechar_todas_conexoes()
 

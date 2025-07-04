@@ -120,13 +120,13 @@ class ArtigoDAO:
 
     def sincronizar_resumos(self) -> None:
         """
-        Atualiza os campos de resumo dos artigos com DOI e resumo nulo,
+        Atualiza os campos de resumo dos artigos com DOI nulo, 
         consultando a API do OpenAlex.
         """
         sql_consulta = """
             SELECT id_artigo, doi 
             FROM artigo 
-            WHERE doi IS NOT NULL AND resumo IS NULL AND resumo_sincronizado = FALSE
+            WHERE doi IS NOT NULL AND resumo_sincronizado = FALSE
         """
         sql_atualizacao = """
             UPDATE artigo 
@@ -138,7 +138,7 @@ class ArtigoDAO:
                 cursor.execute(sql_consulta)
                 artigos = cursor.fetchall()
 
-            logger.info(f"{len(artigos)} artigos sem resumo encontrados para sincronização.")
+            logger.info(f"{len(artigos)} artigos sem resumo sincronizado encontrados.")
 
             for id_artigo, doi in artigos:
                 try:
