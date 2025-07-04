@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import FileResponse
 from typing import List
+from pathlib import Path
 import logging
 
 from model.pesquisador import Pesquisador
@@ -61,6 +63,15 @@ class PesquisadorController:
             description="Remove um pesquisador existente por ID. Retorna 404 se não encontrado."
         )
 
+        self.router.add_api_route(
+            "/{id_pesquisador}/foto",
+            self.retornar_foto,
+            response_class=FileResponse,
+            methods=["GET"],
+            summary="Obter foto do pesquisador",
+            description="Retorna a foto JPEG do pesquisador, se existir."
+        )
+
     def listar(self):
         return self.dao.listar_pesquisadores()
 
@@ -97,6 +108,13 @@ class PesquisadorController:
         except RuntimeError as e:
             logger.error("Erro ao apagar pesquisador: %s", e)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    def retornar_foto(self, id_pesquisador: str) -> FileResponse:
+        caminho = Path("imagens") / "pesquisadores" / f"{id_pesquisador}.jpg"
+        if not caminho.exists():
+            logger.warning("Foto não encontrada para pesquisador %s", id_pesquisador)
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Foto não encontrada")
+        return FileResponse(caminho, media_type="image/jpeg")
 
 # Instância do controller e router exportável
 pesquisador_controller = PesquisadorController()
