@@ -3,4 +3,5 @@
 .venv*/
 venv*/
 virtual_environment/
+imagens/
 __pycache__/

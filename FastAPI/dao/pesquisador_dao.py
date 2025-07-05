@@ -20,8 +20,11 @@ class PesquisadorDAO:
         Conexao.devolver_conexao(self.conexao)
 
 
-    def listar_pesquisadores(self) -> List[Dict]:        
-        sql = "SELECT id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes FROM pesquisador"
+    def listar_pesquisadores(self) -> List[Dict]:
+        sql = (
+            "SELECT id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes "
+            "FROM pesquisador "
+        )
         try:
             with self.conexao.cursor() as cursor:
                 cursor.execute(sql)
@@ -32,6 +35,25 @@ class PesquisadorDAO:
         except Exception as e:
             logger.exception("Erro ao listar pesquisadores")
             raise RuntimeError(f"Erro ao listar pesquisadores: {e}")
+
+
+    def buscar_por_termo(self, termo: str) -> List[Dict]:
+        sql = (
+            "SELECT id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes "
+            "FROM pesquisador "
+            "WHERE unaccent(lower(nome)) ILIKE unaccent(lower(%s)) "
+        )
+        try:
+            with self.conexao.cursor() as cursor:
+                termo_limpo = f"%{termo.strip()}%"
+
+                cursor.execute(sql, (termo_limpo,))
+                colunas = [desc[0] for desc in cursor.description]
+                linhas = cursor.fetchall()                
+            return [dict(zip(colunas, linha)) for linha in linhas]
+        except Exception as e:
+            logger.exception("Erro ao buscar pesquisador pelo termo: {termo}")
+            raise RuntimeError(f"Erro ao buscar pesquisador por termo: {e}")
 
 
     def salvar_pesquisador(self, pesquisador:Pesquisador) -> Dict:
@@ -118,7 +140,7 @@ class PesquisadorDAO:
             logger.exception("Erro ao apagar pesquisador")
             raise RuntimeError(f"Erro ao apagar pesquisador: {e}")
         
-        
+
     def sincronizar_fotos(self) -> None:
         """
         Para cada pesquisador com id_lattes e sem foto sincronizada,

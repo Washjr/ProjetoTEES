@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from typing import List
 from pathlib import Path
@@ -8,6 +8,7 @@ from model.pesquisador import Pesquisador
 from dao.pesquisador_dao import PesquisadorDAO
 
 logger = logging.getLogger(__name__)
+
 
 class PesquisadorController:
     """
@@ -27,6 +28,15 @@ class PesquisadorController:
             methods=["GET"],
             summary="Listar pesquisadores",
             description="Retorna todos os pesquisadores cadastrados no sistema."
+        )
+
+        self.router.add_api_route(
+            "/buscar",
+            self.buscar_por_termo,
+            response_model=List[Pesquisador],
+            methods=["GET"],
+            summary="Buscar pesquisadores por termo",
+            description="Retorna os pesquisadores cujo nome contém o termo passado."
         )
 
         self.router.add_api_route(
@@ -74,6 +84,14 @@ class PesquisadorController:
 
     def listar(self):
         return self.dao.listar_pesquisadores()
+    
+    def buscar_por_termo(self, termo: str = Query(..., min_length=1)) -> List[Pesquisador]:
+        try:
+            return self.dao.buscar_por_termo(termo)
+        
+        except Exception as e:
+            logger.exception("Erro ao buscar pesquisador pelo termo: {termo}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     def adicionar(self, pesquisador: Pesquisador):
         try:
