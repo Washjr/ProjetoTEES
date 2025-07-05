@@ -1,11 +1,13 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from typing import List
 import logging
 
-from model.artigo import Artigo
 from dao.artigo_dao import ArtigoDAO
+from model.artigo import Artigo
+from langchain_service import LangchainService
 
 logger = logging.getLogger(__name__)
+
 
 class ArtigoController:
     """
@@ -15,6 +17,7 @@ class ArtigoController:
     def __init__(self):
         self.dao = ArtigoDAO()
         self.router = APIRouter(prefix="/artigos", tags=["artigos"])
+        self.summarizer = LangchainService()
         self._register_routes()
 
     def _register_routes(self):
@@ -25,6 +28,18 @@ class ArtigoController:
             methods=["GET"],
             summary="Listar artigos",
             description="Retorna todos os artigos cadastrados no sistema."
+        )
+
+        self.router.add_api_route(
+            "/buscar",
+            self.buscar_por_termo,
+            response_model=None,
+            methods=["GET"],
+            summary="Buscar artigos por termo",
+            description=(
+                "Retorna os artigos cujo nome ou resumo contém o termo passado. "
+                "Pode também incluir um resumo geral dos resultados se `incluir_resumo=true`."
+            )
         )
 
         self.router.add_api_route(
@@ -63,6 +78,24 @@ class ArtigoController:
 
     def listar(self):
         return self.dao.listar_artigos()
+
+    def buscar_por_termo(
+        self, 
+        termo: str = Query(..., min_length=1), 
+        incluir_resumo: bool = Query(False)
+    ):
+        try:
+            resultados = self.dao.buscar_por_termo(termo)
+
+            if incluir_resumo and resultados:
+                resumo = self.summarizer.summarize(resultados, tipo="artigo")
+                return {"resultados": resultados, "resumo_ia": resumo}
+
+            return resultados
+        
+        except Exception as e:
+            logger.exception("Erro ao buscar artigo pelo termo: {termo}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     def adicionar(self, artigo: Artigo):
         try:

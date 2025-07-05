@@ -2,6 +2,8 @@
 .vscode/
 .venv*/
 venv*/
+.env
+.env.*
 virtual_environment/
 imagens/
 __pycache__/

@@ -45,14 +45,14 @@ class PesquisadorDAO:
         )
         try:
             with self.conexao.cursor() as cursor:
-                termo_limpo = f"%{termo.strip()}%"
+                termo_formatado = f"%{termo.strip()}%"
 
-                cursor.execute(sql, (termo_limpo,))
+                cursor.execute(sql, (termo_formatado,))
                 colunas = [desc[0] for desc in cursor.description]
                 linhas = cursor.fetchall()                
             return [dict(zip(colunas, linha)) for linha in linhas]
         except Exception as e:
-            logger.exception("Erro ao buscar pesquisador pelo termo: {termo}")
+            logger.exception(f"Erro ao buscar pesquisador pelo termo: '{termo}'")
             raise RuntimeError(f"Erro ao buscar pesquisador por termo: {e}")
 
 

@@ -4,8 +4,9 @@ from typing import List
 from pathlib import Path
 import logging
 
-from model.pesquisador import Pesquisador
 from dao.pesquisador_dao import PesquisadorDAO
+from model.pesquisador import Pesquisador
+from langchain_service import LangchainService
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class PesquisadorController:
     def __init__(self):
         self.dao = PesquisadorDAO()
         self.router = APIRouter(prefix="/pesquisadores", tags=["pesquisadores"])
+        self.summarizer = LangchainService()
         self._register_routes()
 
     def _register_routes(self):
@@ -33,10 +35,13 @@ class PesquisadorController:
         self.router.add_api_route(
             "/buscar",
             self.buscar_por_termo,
-            response_model=List[Pesquisador],
+            response_model=None,
             methods=["GET"],
             summary="Buscar pesquisadores por termo",
-            description="Retorna os pesquisadores cujo nome contém o termo passado."
+            description=(
+                "Retorna os pesquisadores cujo nome contém o termo passado. "
+                "Pode também incluir um resumo geral dos resultados se `incluir_resumo=true`."
+            )
         )
 
         self.router.add_api_route(
@@ -85,9 +90,19 @@ class PesquisadorController:
     def listar(self):
         return self.dao.listar_pesquisadores()
     
-    def buscar_por_termo(self, termo: str = Query(..., min_length=1)) -> List[Pesquisador]:
+    def buscar_por_termo(
+        self, 
+        termo: str = Query(..., min_length=1), 
+        incluir_resumo: bool = Query(False)
+    ):
         try:
-            return self.dao.buscar_por_termo(termo)
+            resultados = self.dao.buscar_por_termo(termo)
+
+            if incluir_resumo and resultados:
+                resumo = self.summarizer.summarize(resultados, tipo="pesquisador")
+                return {"resultados": resultados, "resumo_ia": resumo}
+
+            return resultados
         
         except Exception as e:
             logger.exception("Erro ao buscar pesquisador pelo termo: {termo}")

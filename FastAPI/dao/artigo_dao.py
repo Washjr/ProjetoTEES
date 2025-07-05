@@ -22,7 +22,10 @@ class ArtigoDAO:
 
     
     def listar_artigos(self) -> List[Dict]: 
-        sql = "SELECT id_artigo, nome, ano, resumo, doi, id_pesquisador, id_periodico FROM artigo"
+        sql = (
+            "SELECT id_artigo, nome, ano, resumo, doi, id_pesquisador, id_periodico "
+            "FROM artigo "
+        )
         try:
             with self.conexao.cursor() as cursor:
                 cursor.execute(sql)
@@ -33,6 +36,26 @@ class ArtigoDAO:
         except Exception as e:
             logger.exception("Erro ao listar artigos")
             raise RuntimeError(f"Erro ao listar artigos: {e}")
+
+
+    def buscar_por_termo(self, termo: str) -> List[Dict]:
+        sql = (
+            "SELECT id_artigo, nome, ano, resumo, doi, id_pesquisador, id_periodico "
+            "FROM artigo "
+            "WHERE unaccent(lower(nome)) ILIKE unaccent(lower(%s)) "
+            "OR unaccent(lower(resumo)) ILIKE unaccent(lower(%s)) "
+        )
+        try:
+            with self.conexao.cursor() as cursor:
+                termo_formatado = f"%{termo.strip()}%"
+                
+                cursor.execute(sql, (termo_formatado, termo_formatado))
+                colunas = [desc[0] for desc in cursor.description]
+                linhas = cursor.fetchall()
+            return [dict(zip(colunas, linha)) for linha in linhas]
+        except Exception as e:
+            logger.exception(f"Erro ao buscar artigo pelo termo: '{termo}'")
+            raise RuntimeError(f"Erro ao buscar artigo por termo: {e}")
 
 
     def salvar_artigo(self, artigo: Artigo) -> Dict:

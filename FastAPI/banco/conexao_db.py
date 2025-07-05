@@ -2,23 +2,8 @@ import threading
 import logging
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2 import OperationalError
-from pydantic_settings import BaseSettings
 
-# Configuração de ambiente para credenciais do banco (.env)
-class Configuracoes(BaseSettings):
-    DB_HOST: str
-    DB_NAME: str
-    DB_USER: str
-    DB_PASS: str
-    DB_PORT: int = 5445
-    DB_MIN_CONEXOES: int = 1
-    DB_MAX_CONEXOES: int = 10
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-
-configuracoes = Configuracoes()
+from config import configuracoes
 
 # Logger do módulo de conexão
 logger = logging.getLogger(__name__)
