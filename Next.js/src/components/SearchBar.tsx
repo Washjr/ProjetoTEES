@@ -1,64 +1,68 @@
 
 import React from 'react';
 import { Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchMode } from './SearchInterface';
 
 interface SearchBarProps {
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
+  searchQuery: string;
+  searchMode: SearchMode;
+  onQueryChange: (query: string) => void;
+  onKeyPress: (e: React.KeyboardEvent) => void;
   onSearch: () => void;
-  isLoading: boolean;
-  searchType: 'artigo' | 'pesquisador';
-  onSearchTypeChange: (type: 'artigo' | 'pesquisador') => void;
+  isLoading?: boolean;
 }
 
 const SearchBar = ({ 
-  searchTerm, 
-  onSearchChange, 
-  onSearch, 
-  isLoading, 
-  searchType, 
-  onSearchTypeChange 
+  searchQuery, 
+  searchMode, 
+  onQueryChange, 
+  onKeyPress, 
+  onSearch,
+  isLoading = false
 }: SearchBarProps) => {
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      onSearch();
-    }
-  };
+  const placeholder = searchMode === 'articles' 
+    ? 'Pesquisar artigos, publicações, trabalhos...'
+    : 'Pesquisar pesquisadores, professores, autores...';
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <div className="relative flex items-center gap-2">
-        <Select value={searchType} onValueChange={onSearchTypeChange}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="artigo">Artigo</SelectItem>
-            <SelectItem value="pesquisador">Pesquisador</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            type="text"
-            placeholder="Digite sua pesquisa..."
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onKeyPress={handleKeyPress}
-            className="pl-10 pr-4 py-3 text-base"
-            disabled={isLoading}
-          />
-        </div>
-        <Button 
-          onClick={onSearch} 
-          disabled={isLoading || !searchTerm.trim()}
-          className="px-6 py-3"
+    <div className="relative group">
+      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+        <Search 
+          className={`h-5 w-5 transition-colors duration-200 ${
+            searchQuery 
+              ? (searchMode === 'articles' ? 'text-blue-500' : 'text-indigo-500')
+              : 'text-slate-400 group-hover:text-slate-500'
+          }`} 
+        />
+      </div>
+      
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => onQueryChange(e.target.value)}
+        onKeyPress={onKeyPress}
+        placeholder={placeholder}
+        disabled={isLoading}
+        className={`w-full h-14 pl-12 pr-24 text-lg bg-slate-50/80 border-2 rounded-xl transition-all duration-200 focus:outline-none focus:bg-white ${
+          searchMode === 'articles'
+            ? 'border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100'
+            : 'border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
+        } placeholder-slate-400 disabled:opacity-50 disabled:cursor-not-allowed`}
+      />
+      
+      <div className="absolute inset-y-0 right-2 flex items-center">
+        <Button
+          onClick={onSearch}
+          size="sm"
+          disabled={isLoading || !searchQuery.trim()}
+          className={`h-10 px-6 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+            searchMode === 'articles'
+              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl'
+              : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl'
+          }`}
         >
-          {isLoading ? 'Buscando...' : 'Buscar'}
+          {isLoading ? 'Pesquisando...' : 'Pesquisar'}
         </Button>
       </div>
     </div>

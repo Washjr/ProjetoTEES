@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import SearchHeader from "@/components/SearchHeader";
-import SearchBar from "@/components/SearchBar";
+import SearchInterface, { SearchMode } from "@/components/SearchInterface";
 import SearchSummary from "@/components/SearchSummary";
 import SearchResult from "@/components/SearchResult";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -14,12 +13,10 @@ import { ArticleData, ResearcherData } from "@/types";
 
 const Index = () => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchType, setSearchType] = useState<"artigo" | "pesquisador">(
-    "artigo"
-  );
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchMode, setSearchMode] = useState<SearchMode>("articles");
   const [results, setResults] = useState<ArticleData[]>([]);
   const [researchers, setResearchers] = useState<ResearcherData[]>([]);
   const [selectedArticle, setSelectedArticle] =
@@ -28,21 +25,25 @@ const Index = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) return;
+  const handleSearch = async (query: string, mode: SearchMode) => {
+    if (!query.trim()) return;
 
+    setSearchTerm(query);
+    setSearchMode(mode);
     setIsLoading(true);
     setHasSearched(true);
     setCurrentPage(1);
 
     try {
-      if (searchType === "artigo") {
-        const searchResults = await ApiService.searchArticles(searchTerm);
+      if (mode === "articles") {
+        const searchResults = await ApiService.searchArticles(query);
         setResults(searchResults);
+        setResearchers([]);
         setTotalPages(Math.ceil(searchResults.length / 5));
       } else {
-        const searchResearchers = await ApiService.searchResearchers(searchTerm);
+        const searchResearchers = await ApiService.searchResearchers(query);
         setResearchers(searchResearchers);
+        setResults([]);
         setTotalPages(Math.ceil(searchResearchers.length / 8));
       }
     } catch (error) {
@@ -71,7 +72,7 @@ const Index = () => {
   };
 
   const getTotalResults = () =>
-    searchType === "artigo" ? results.length : researchers.length;
+    searchMode === "articles" ? results.length : researchers.length;
   const getTopKeyword = () => {
     if (searchTerm.toLowerCase().includes("machine")) return "algoritmos";
     if (searchTerm.toLowerCase().includes("climate")) return "temperatura";
@@ -79,8 +80,22 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <SearchHeader />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Header simples */}
+      <header className="border-b border-slate-200/50 bg-white/70 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">AE</span>
+              </div>
+              <span className="font-semibold text-slate-800">
+                Pesquisa Acadêmica
+              </span>
+            </div>
+          </div>
+        </div>
+      </header>
 
       <main className="container mx-auto px-4 py-8">
         {/* Seção de busca centralizada */}
@@ -92,14 +107,68 @@ const Index = () => {
           }`}
         >
           <div className={`w-full ${hasSearched ? "max-w-2xl" : "max-w-4xl"}`}>
-            <SearchBar
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              onSearch={handleSearch}
-              isLoading={isLoading}
-              searchType={searchType}
-              onSearchTypeChange={setSearchType}
-            />
+            {!hasSearched && (
+              <div className="max-w-4xl mx-auto text-center mb-12">
+                <h1 className="text-5xl font-bold text-slate-800 mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  Pesquisa Acadêmica
+                </h1>
+                <p className="text-xl text-slate-600 mb-2">
+                  Descubra pesquisas inovadoras e conecte-se com acadêmicos
+                  líderes
+                </p>
+                <p className="text-lg text-slate-500">
+                  Pesquise entre artigos e perfis de pesquisadores
+                </p>
+              </div>
+            )}
+
+            <SearchInterface onSearch={handleSearch} isLoading={isLoading} />
+
+            {!hasSearched && (
+              <div className="mt-16 grid md:grid-cols-3 gap-8 max-w-3xl mx-auto">
+                <div className="text-center p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                    <span className="text-blue-600 text-xl font-semibold">
+                      📚
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-slate-800 mb-2">
+                    Artigos de Pesquisa
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    Artigos de professores da Universidade do Estado da Bahia
+                  </p>
+                </div>
+
+                <div className="text-center p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                    <span className="text-indigo-600 text-xl font-semibold">
+                      👨‍🎓
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-slate-800 mb-2">
+                    Professores
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    Visualize dados de professores e pesquisadores
+                  </p>
+                </div>
+
+                <div className="text-center p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                    <span className="text-purple-600 text-xl font-semibold">
+                      🔬
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-slate-800 mb-2">
+                    Últimas Pesquisas
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    Fique atualizado com as recentes pesquisas dos professores
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -111,7 +180,7 @@ const Index = () => {
             ) : (
               <>
                 {/* Sumário apenas para artigos */}
-                {searchType === "artigo" && results.length > 0 && (
+                {searchMode === "articles" && results.length > 0 && (
                   <SearchSummary
                     totalResults={getTotalResults()}
                     topKeyword={getTopKeyword()}
@@ -120,7 +189,7 @@ const Index = () => {
                 )}
 
                 {/* Resultados */}
-                {searchType === "artigo" ? (
+                {searchMode === "articles" ? (
                   results.length > 0 ? (
                     <div className="space-y-4">
                       {results.map((result) => (
@@ -159,8 +228,8 @@ const Index = () => {
                 )}
 
                 {/* Paginação */}
-                {((searchType === "artigo" && results.length > 0) ||
-                  (searchType === "pesquisador" && researchers.length > 0)) && (
+                {((searchMode === "articles" && results.length > 0) ||
+                  (searchMode === "researchers" && researchers.length > 0)) && (
                   <SearchPagination
                     currentPage={currentPage}
                     totalPages={totalPages}
