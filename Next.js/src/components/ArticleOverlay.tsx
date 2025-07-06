@@ -4,19 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
-
-interface ArticleData {
-  id: string;
-  title: string;
-  journal: string;
-  year: number;
-  volume?: string;
-  issue?: string;
-  abstract: string;
-  doi?: string;
-  authors: Array<{ id: string; name: string }>;
-  tags: string[];
-}
+import { ArticleData } from '@/types';
 
 interface ArticleOverlayProps {
   article: ArticleData | null;

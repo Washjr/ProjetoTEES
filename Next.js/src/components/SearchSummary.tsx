@@ -25,7 +25,7 @@ const SearchSummary = ({ totalResults, topKeyword, searchTerm }: SearchSummaryPr
   const summaryText = `A busca por "${searchTerm}" retornou ${totalResults} documentos científicos relevantes. Os resultados abrangem principalmente pesquisas relacionadas a ${topKeyword} e suas aplicações em diferentes áreas. A análise dos documentos mostra uma concentração de estudos em métodos computacionais avançados e suas implementações práticas na área da saúde e medicina.`;
 
   return (
-    <Card className="w-full max-w-4xl mx-auto mb-6 shadow-md border-0 bg-card">
+    <Card className="w-full mb-6 shadow-md border-0 bg-card">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-medium text-foreground">
