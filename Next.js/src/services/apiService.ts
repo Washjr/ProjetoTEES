@@ -11,10 +11,7 @@ const mockResults: ArticleData[] = [
       "Advances in Machine Learning Applications for Healthcare Diagnostics",
     journal: "Nature Medicine",
     year: 2023,
-    volume: "29",
     issue: "3",
-    abstractHighlight:
-      "Recent developments in machine learning have revolutionized healthcare diagnostics, enabling more accurate and faster detection of diseases...",
     abstract:
       "Recent developments in machine learning have revolutionized healthcare diagnostics, enabling more accurate and faster detection of diseases. This study presents a comprehensive analysis of machine learning algorithms applied to medical imaging and patient data, demonstrating significant improvements in diagnostic accuracy across multiple medical specialties.",
     doi: "10.1038/s41591-023-01234-5",
@@ -22,22 +19,15 @@ const mockResults: ArticleData[] = [
       { id: "1", name: "Dr. Maria Silva Santos" },
       { id: "2", name: "Dr. João Paulo Lima" },
     ],
-    tags: [
-      "machine learning",
-      "healthcare",
-      "diagnostics",
-      "medical imaging",
-    ],
+    qualis: "A1",
   },
   {
     id: "2",
     title: "Climate Change Impact on Marine Ecosystems",
     journal: "Environmental Science",
     year: 2023,
-    volume: "15",
     issue: "2",
-    abstractHighlight:
-      "This comprehensive study examines the effects of climate change on marine biodiversity and ecosystem stability...",
+    qualis: "A1",
     abstract:
       "This comprehensive study examines the effects of climate change on marine biodiversity and ecosystem stability. Through extensive data analysis and field research, we demonstrate significant correlations between rising ocean temperatures and species migration patterns.",
     doi: "10.1016/j.envres.2023.01234",
@@ -45,7 +35,6 @@ const mockResults: ArticleData[] = [
       { id: "3", name: "Dra. Ana Costa Ferreira" },
       { id: "4", name: "Dr. Carlos Eduardo Silva" },
     ],
-    tags: ["climate change", "marine ecology", "biodiversity", "temperature"],
   },
 ];
 
@@ -54,7 +43,6 @@ const mockResearchers: ResearcherData[] = [
     id: "1",
     name: "Dr. Maria Silva Santos",
     title: "Doutora em Ciência da Computação",
-    hIndex: 25,
     photo:
       "https://images.unsplash.com/photo-1494790108755-2616b612b5bc?w=400&h=400&fit=crop&crop=face",
   },
@@ -62,7 +50,6 @@ const mockResearchers: ResearcherData[] = [
     id: "2",
     name: "Dr. João Paulo Lima",
     title: "Doutor em Inteligência Artificial",
-    hIndex: 18,
     photo:
       "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
   },
@@ -70,7 +57,6 @@ const mockResearchers: ResearcherData[] = [
     id: "3",
     name: "Dra. Ana Costa Ferreira",
     title: "Doutora em Medicina",
-    hIndex: 32,
     photo:
       "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&crop=face",
   },
@@ -78,7 +64,6 @@ const mockResearchers: ResearcherData[] = [
     id: "4",
     name: "Dr. Carlos Eduardo Silva",
     title: "Doutor em Engenharia Biomédica",
-    hIndex: 22,
     photo:
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
   },

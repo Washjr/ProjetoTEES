@@ -198,9 +198,9 @@ const Index = () => {
                           title={result.title}
                           journal={result.journal}
                           year={result.year}
-                          volume={result.volume}
                           issue={result.issue}
-                          abstractHighlight={result.abstractHighlight}
+                          qualis={result.qualis}
+                          abstract={result.abstract}
                           searchTerm={searchTerm}
                           onClick={() => handleArticleClick(result)}
                         />
@@ -217,7 +217,6 @@ const Index = () => {
                         id={researcher.id}
                         name={researcher.name}
                         title={researcher.title}
-                        hIndex={researcher.hIndex}
                         photo={researcher.photo}
                         onClick={handleResearcherClick}
                       />

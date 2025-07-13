@@ -17,7 +17,6 @@ const Researcher = () => {
     id: id || '1',
     name: 'Dr. Maria Silva Santos',
     title: 'Doutora em Ciência da Computação',
-    hIndex: 25,
     photo: 'https://images.unsplash.com/photo-1494790108755-2616b612b5bc?w=400&h=400&fit=crop&crop=face',
     productions: [
       {
@@ -25,18 +24,16 @@ const Researcher = () => {
         title: 'Machine Learning Applications in Healthcare: A Comprehensive Review',
         journal: 'Nature Medicine',
         year: 2023,
-        volume: '29',
         issue: '3',
-        abstractHighlight: 'This comprehensive review examines the latest machine learning applications in healthcare, focusing on diagnostic accuracy and patient outcomes...'
+        abstract: 'This comprehensive review examines the latest machine learning applications in healthcare, focusing on diagnostic accuracy and patient outcomes...'
       },
       {
         id: '2',
         title: 'Deep Learning for Medical Image Analysis',
         journal: 'IEEE Transactions on Medical Imaging',
         year: 2022,
-        volume: '41',
         issue: '8',
-        abstractHighlight: 'We present a novel deep learning approach for medical image analysis that achieves state-of-the-art results in tumor detection...'
+        abstract: 'We present a novel deep learning approach for medical image analysis that achieves state-of-the-art results in tumor detection...'
       }
     ],
     academicHistory: [
@@ -75,9 +72,6 @@ const Researcher = () => {
           <div className="flex-1">
             <h1 className="text-3xl font-bold mb-2">{researcher.name}</h1>
             <p className="text-xl text-muted-foreground mb-4">{researcher.title}</p>
-            <Badge variant="secondary" className="text-lg px-3 py-1">
-              H-Index: {researcher.hIndex}
-            </Badge>
           </div>
         </div>
 
@@ -101,9 +95,8 @@ const Researcher = () => {
                   title={article.title}
                   journal={article.journal}
                   year={article.year}
-                  volume={article.volume}
                   issue={article.issue}
-                  abstractHighlight={article.abstractHighlight}
+                  abstract={article.abstract}
                   searchTerm=""
                 />
               ))}

@@ -3,11 +3,9 @@ export interface ArticleData {
   title: string;
   journal: string;
   year: number;
-  volume?: string;
   issue?: string;
-  abstractHighlight: string;
   abstract: string;
   doi?: string;
   authors: Array<{ id: string; name: string }>;
-  tags: string[];
+  qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'NP';
 }

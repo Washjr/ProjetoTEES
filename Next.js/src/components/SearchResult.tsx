@@ -7,10 +7,10 @@ interface SearchResultProps {
   title: string;
   journal: string;
   year: number;
-  volume?: string;
   issue?: string;
-  abstractHighlight: string;
+  abstract: string;
   searchTerm: string;
+  qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'NP';
   onClick?: () => void;
 }
 
@@ -18,10 +18,10 @@ const SearchResult = ({
   title, 
   journal, 
   year, 
-  volume, 
   issue, 
-  abstractHighlight, 
+  abstract,
   searchTerm,
+  qualis,
   onClick 
 }: SearchResultProps) => {
   const highlightText = (text: string, term: string) => {
@@ -41,46 +41,75 @@ const SearchResult = ({
     );
   };
 
+  const getClassificationColor = (classification?: string) => {
+    switch (classification) {
+      case 'A1': return 'bg-green-600';
+      case 'A2': return 'bg-green-500';
+      case 'A3': return 'bg-green-400';
+      case 'A4': return 'bg-green-300';
+      case 'B1': return 'bg-orange-600';
+      case 'B2': return 'bg-orange-500';
+      case 'B3': return 'bg-orange-400';
+      case 'B4': return 'bg-orange-300';
+      case 'C': return 'bg-red-500';
+      case 'NP': return 'bg-gray-400';
+      default: return 'bg-transparent';
+    }
+  };
+
   const publicationInfo = [
     journal,
     year.toString(),
-    volume && `Vol. ${volume}`,
     issue && `Issue ${issue}`
   ].filter(Boolean).join(', ');
 
   return (
     <Card 
-      className={`w-full hover:shadow-md transition-all duration-200 border hover:border-primary/30 ${
+      className={`w-full hover:shadow-md transition-all duration-200 border hover:border-primary/30 overflow-hidden ${
         onClick ? 'cursor-pointer' : ''
       }`}
       onClick={onClick}
     >
-      <CardContent className="p-6">
-        <div className="flex flex-col space-y-3">
-          {/* Header com título e ano */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-            <h3 className="text-lg font-semibold leading-tight hover:text-primary transition-colors flex-1">
-              {title}
-            </h3>
-            <Badge variant="outline" className="text-xs self-start">
-              {year}
-            </Badge>
-          </div>
-          
-          {/* Informações da publicação */}
-          <p className="text-sm text-muted-foreground">
-            {publicationInfo}
-          </p>
-          
-          {/* Abstract */}
-          <div className="text-sm text-muted-foreground leading-relaxed">
-            <p className="italic mb-1">Abstract:</p>
-            <p className="line-clamp-3">
-              {highlightText(abstractHighlight, searchTerm)}
+      <div className="flex">
+        {/* Barra lateral colorida para classificação */}
+        {qualis && (
+          <div className={`w-1 ${getClassificationColor(qualis)} flex-shrink-0`} />
+        )}
+        
+        <CardContent className="p-6 flex-1">
+          <div className="flex flex-col space-y-3">
+            {/* Header com título e ano */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+              <h3 className="text-lg font-semibold leading-tight hover:text-primary transition-colors flex-1">
+                {title}
+              </h3>
+              <div className="flex gap-2 self-start">
+                {qualis && (
+                  <Badge variant="secondary" className="text-xs">
+                    {qualis}
+                  </Badge>
+                )}
+                <Badge variant="outline" className="text-xs">
+                  {year}
+                </Badge>
+              </div>
+            </div>
+            
+            {/* Informações da publicação */}
+            <p className="text-sm text-muted-foreground">
+              {publicationInfo}
             </p>
+            
+            {/* Abstract */}
+            <div className="text-sm text-muted-foreground leading-relaxed">
+              <p className="italic mb-1">Abstract:</p>
+              <p className="line-clamp-3">
+                {highlightText(abstract, searchTerm)}
+              </p>
+            </div>
           </div>
-        </div>
-      </CardContent>
+        </CardContent>
+      </div>
     </Card>
   );
 };

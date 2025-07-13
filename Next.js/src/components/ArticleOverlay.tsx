@@ -30,9 +30,6 @@ const ArticleOverlay = ({ article, isOpen, onClose, onAuthorClick }: ArticleOver
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{article.year}</Badge>
             <span className="text-sm text-muted-foreground">{article.journal}</span>
-            {article.volume && (
-              <span className="text-sm text-muted-foreground">Vol. {article.volume}</span>
-            )}
             {article.issue && (
               <span className="text-sm text-muted-foreground">Issue {article.issue}</span>
             )}
@@ -62,20 +59,6 @@ const ArticleOverlay = ({ article, isOpen, onClose, onAuthorClick }: ArticleOver
               {article.abstract}
             </p>
           </div>
-
-          {/* Tags */}
-          {article.tags.length > 0 && (
-            <div>
-              <h3 className="font-semibold mb-2">Tags:</h3>
-              <div className="flex flex-wrap gap-2">
-                {article.tags.map((tag, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* DOI */}
           {article.doi && (

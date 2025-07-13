@@ -7,12 +7,11 @@ interface ResearcherCardProps {
   id: string;
   name: string;
   title: string;
-  hIndex: number;
   photo: string;
   onClick: (id: string) => void;
 }
 
-const ResearcherCard = ({ id, name, title, hIndex, photo, onClick }: ResearcherCardProps) => {
+const ResearcherCard = ({ id, name, title, photo, onClick }: ResearcherCardProps) => {
   return (
     <Card 
       className="relative overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 aspect-[4/3] group"
@@ -24,14 +23,6 @@ const ResearcherCard = ({ id, name, title, hIndex, photo, onClick }: ResearcherC
           alt={name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
         />
-        
-        {/* H-Index badge */}
-        <Badge 
-          variant="secondary" 
-          className="absolute top-2 right-2 bg-background/90 text-foreground"
-        >
-          H-Index: {hIndex}
-        </Badge>
         
         {/* Name and title overlay */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
