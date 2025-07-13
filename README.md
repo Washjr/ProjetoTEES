@@ -14,15 +14,15 @@ Certifique-se de que o Docker Desktop está em execução antes de prosseguir.
 
 Navegue até o diretório `PostgreSQL`:
 
-cd PostgreSQL
+```cd PostgreSQL```
 
 Construa a imagem Docker:
 
-docker build -t projeto-tees .
+```docker build -t projeto-tees .```
 
 Execute o container:
 
-docker run -d --name projeto-tees-container -p 5445:5432 projeto-tees
+```docker run -d --name projeto-tees-container -p 5445:5432 projeto-tees```
 
 Isso criará e executará um container PostgreSQL na porta 5445. É possivel visualiza-lo pelo HeidiSQL a partir das configuraçoes definidas no Dockerfile
 
@@ -32,12 +32,12 @@ Isso criará e executará um container PostgreSQL na porta 5445. É possivel vis
 
  Navegue até o diretório `Next.js`:
 
-cd ..\Next.js
+```cd ..\Next.js```
 
 Instale as dependências:
 
-npm install
+```npm install```
 Inicie o servidor de desenvolvimento:
 
-npm run dev
+```npm run dev```
 O frontend estará disponível em: http://localhost:3000
