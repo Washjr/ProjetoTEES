@@ -143,7 +143,12 @@ const Researcher = () => {
         <Card className="mb-8 bg-white/70 backdrop-blur-sm border-slate-200/50 shadow-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-slate-800">Resumo e Tags</CardTitle>
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-slate-800">Resumo e Tags</CardTitle>
+                <Badge variant="outline" className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200 text-purple-700 text-xs">
+                  Gerado por IA
+                </Badge>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
