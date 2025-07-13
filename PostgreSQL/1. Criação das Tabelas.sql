@@ -24,7 +24,13 @@ CREATE TABLE IF NOT EXISTS pesquisador (
 	foto_sincronizada BOOLEAN NOT NULL DEFAULT FALSE,
 	id_orcid VARCHAR(19),
 	id_lattes VARCHAR(16) NOT NULL,
-	PRIMARY KEY (id_pesquisador)
+	id_instituicao UUID NOT NULL,
+	PRIMARY KEY (id_pesquisador),
+	CONSTRAINT fk_pesquisador_instituicao
+		FOREIGN KEY (id_instituicao)
+		REFERENCES instituicao (id_instituicao)
+		ON UPDATE NO ACTION 
+		ON DELETE NO ACTION
 );
 
 CREATE TABLE IF NOT EXISTS artigo (

@@ -430,7 +430,7 @@
       <method>none</method>
       <schema_name/>
     </partitioning>
-    <join_type>LEFT OUTER</join_type>
+    <join_type>INNER</join_type>
     <keys_1>
       <key>ISSN</key>
     </keys_1>
@@ -487,27 +487,21 @@
     <fields>
       <field>
         <name>TITULO-DO-ARTIGO</name>
-        <rename/>
       </field>
       <field>
         <name>ANO-DO-ARTIGO</name>
-        <rename/>
       </field>
       <field>
         <name>DOI</name>
-        <rename/>
       </field>
       <field>
         <name>NOME-COMPLETO</name>
-        <rename/>
       </field>
       <field>
         <name>IDLATTES</name>
-        <rename/>
       </field>
       <field>
         <name>ISSN</name>
-        <rename/>
       </field>
       <select_unspecified>N</select_unspecified>
       <meta>
@@ -884,14 +878,11 @@ FROM "public".pesquisador</sql>
     <only_when_have_rows>N</only_when_have_rows>
     <partitioning_daily>N</partitioning_daily>
     <partitioning_enabled>N</partitioning_enabled>
-    <partitioning_field/>
     <partitioning_monthly>Y</partitioning_monthly>
-    <return_field/>
     <return_keys>N</return_keys>
     <schema>"public"</schema>
     <specify_fields>Y</specify_fields>
     <table>artigo</table>
-    <tablename_field/>
     <tablename_in_field>N</tablename_in_field>
     <tablename_in_table>Y</tablename_in_table>
     <truncate>N</truncate>
