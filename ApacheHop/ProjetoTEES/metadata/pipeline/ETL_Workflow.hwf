@@ -42,6 +42,8 @@
       <create_parent_folder>N</create_parent_folder>
       <exec_per_row>N</exec_per_row>
       <filename>${PROJECT_HOME}/metadata/Pipeline/Pesquisador.hpl</filename>
+      <logext/>
+      <logfile/>
       <loglevel>Basic</loglevel>
       <parameters>
         <pass_all_parameters>Y</pass_all_parameters>
@@ -67,7 +69,9 @@
       <clear_rows>N</clear_rows>
       <create_parent_folder>N</create_parent_folder>
       <exec_per_row>N</exec_per_row>
-      <filename>D:\WashJunior\Apache Hop\hop\config\projects\ProjetoTEES\metadata\pipeline\Artigo.hpl</filename>
+      <filename>${PROJECT_HOME}\metadata\pipeline\Artigo.hpl</filename>
+      <logext/>
+      <logfile/>
       <loglevel>Basic</loglevel>
       <parameters>
         <pass_all_parameters>Y</pass_all_parameters>
@@ -104,6 +108,8 @@
       <create_parent_folder>N</create_parent_folder>
       <exec_per_row>N</exec_per_row>
       <filename>${PROJECT_HOME}/metadata/Pipeline/Periodico.hpl</filename>
+      <logext/>
+      <logfile/>
       <loglevel>Basic</loglevel>
       <parameters>
         <pass_all_parameters>Y</pass_all_parameters>
@@ -129,7 +135,9 @@
       <clear_rows>N</clear_rows>
       <create_parent_folder>N</create_parent_folder>
       <exec_per_row>N</exec_per_row>
-      <filename>D:\WashJunior\Apache Hop\hop\config\projects\ProjetoTEES\metadata\pipeline\Software.hpl</filename>
+      <filename>${PROJECT_HOME}\metadata\pipeline\Software.hpl</filename>
+      <logext/>
+      <logfile/>
       <loglevel>Basic</loglevel>
       <parameters>
         <pass_all_parameters>Y</pass_all_parameters>
@@ -155,7 +163,9 @@
       <clear_rows>N</clear_rows>
       <create_parent_folder>N</create_parent_folder>
       <exec_per_row>N</exec_per_row>
-      <filename>D:\WashJunior\Apache Hop\hop\config\projects\ProjetoTEES\metadata\pipeline\Instituicao.hpl</filename>
+      <filename>${PROJECT_HOME}\metadata\pipeline\Instituicao.hpl</filename>
+      <logext/>
+      <logfile/>
       <loglevel>Basic</loglevel>
       <parameters>
         <pass_all_parameters>Y</pass_all_parameters>
@@ -181,7 +191,9 @@
       <clear_rows>N</clear_rows>
       <create_parent_folder>N</create_parent_folder>
       <exec_per_row>N</exec_per_row>
-      <filename>D:\WashJunior\Apache Hop\hop\config\projects\ProjetoTEES\metadata\pipeline\Patente.hpl</filename>
+      <filename>${PROJECT_HOME}\metadata\pipeline\Patente.hpl</filename>
+      <logext/>
+      <logfile/>
       <loglevel>Basic</loglevel>
       <parameters>
         <pass_all_parameters>Y</pass_all_parameters>

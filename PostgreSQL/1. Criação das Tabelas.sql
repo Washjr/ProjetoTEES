@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS pesquisador (
 	grau_academico VARCHAR(30) NOT NULL,
 	resumo TEXT,
 	citacoes TEXT,
-	foto_sincronizada BOOLEAN NOT NULL DEFAULT FALSE;
+	foto_sincronizada BOOLEAN NOT NULL DEFAULT FALSE,
 	id_orcid VARCHAR(19),
 	id_lattes VARCHAR(16) NOT NULL,
 	PRIMARY KEY (id_pesquisador)
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS artigo (
 	ano INTEGER NOT NULL, 
 	doi VARCHAR(100),
 	resumo TEXT,
-	resumo_sincronizado BOOLEAN NOT NULL DEFAULT FALSE;
+	resumo_sincronizado BOOLEAN NOT NULL DEFAULT FALSE,
 	id_pesquisador UUID NOT NULL,
 	id_periodico UUID NOT NULL,
 	PRIMARY KEY (id_artigo), 
