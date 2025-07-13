@@ -99,6 +99,18 @@ class PesquisadorController:
             )
         )
 
+        self.router.add_api_route(
+            "/{id_pesquisador}/resumo",
+            self.obter_resumo,
+            response_model=None,
+            methods=["GET"],
+            summary="Obter resumo e tags do pesquisador",
+            description=(
+                "Retorna um resumo gerado por IA e tags baseadas no perfil e produções do pesquisador. "
+                "Formato compatível com ResumeData do frontend."
+            )
+        )
+
     def listar(self):
         return self.dao.listar_pesquisadores()
     
@@ -175,6 +187,53 @@ class PesquisadorController:
             logger.warning("Foto não encontrada para pesquisador %s", id_pesquisador)
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Foto não encontrada")
         return FileResponse(caminho, media_type="image/jpeg")
+
+    def obter_resumo(self, id_pesquisador: str):
+        """
+        Retorna resumo gerado por IA e tags baseadas no perfil e produções do pesquisador.
+        Compatível com o tipo ResumeData do frontend.
+        """
+        try:
+            # Obter perfil completo do pesquisador
+            perfil = self.dao.obter_perfil_pesquisador(id_pesquisador)
+            
+            # Extrair dados básicos do pesquisador
+            researcher_data = perfil["researcher"]
+            productions = perfil["productions"]
+            
+            # Buscar dados completos do pesquisador para o resumo pessoal
+            pesquisador_completo = self.dao.obter_pesquisador_por_id(id_pesquisador)
+            
+            # Gerar resumo usando IA com tratamento de erro
+            try:
+                resumo_ia = self.summarizer.gerar_resumo_perfil_pesquisador(
+                    nome=researcher_data["name"],
+                    titulo=researcher_data["title"],
+                    resumo_pessoal=pesquisador_completo.resumo if pesquisador_completo else "",
+                    producoes=productions
+                )
+            except Exception as e:
+                logger.warning(f"Erro ao gerar resumo com IA: {e}")
+                resumo_ia = f"Pesquisador especializado em {researcher_data['title']} com {len(productions)} publicações acadêmicas."
+            
+            # Gerar tags usando IA com fallback
+            try:
+                tags = self.summarizer.gerar_tags_pesquisador(productions)
+            except Exception as e:
+                logger.warning(f"Erro ao gerar tags com IA: {e}")
+                tags = ["Pesquisa Acadêmica", "Ciência", "Produção Científica"]
+            
+            return {
+                "resumo_ia": resumo_ia,
+                "tags": tags
+            }
+        
+        except LookupError as e:
+            logger.info("Pesquisador não encontrado para resumo: %s", e)
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        except RuntimeError as e:
+            logger.error("Erro ao obter resumo do pesquisador: %s", e)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 # Instância do controller e router exportável
 pesquisador_controller = PesquisadorController()

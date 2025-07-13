@@ -131,8 +131,6 @@ const mockResearcherProfiles: { [key: string]: ResearcherProfileData } = {
       title: "Doutora em Ciência da Computação",
       photo: "https://images.unsplash.com/photo-1494790108755-2616b612b5bc?w=400&h=400&fit=crop&crop=face",
     },
-    resumo_ia: "Dr. Maria Silva Santos é uma pesquisadora renomada na área de Ciência da Computação, com foco em aplicações de inteligência artificial em diagnósticos médicos. Seus trabalhos têm contribuído significativamente para avanços na precisão diagnóstica e na eficiência dos sistemas de saúde.",
-    tags: ["Inteligência Artificial", "Saúde", "Diagnóstico Médico"],
     productions: [
       {
         id: "1",
@@ -178,8 +176,6 @@ const mockResearcherProfiles: { [key: string]: ResearcherProfileData } = {
       title: "Doutor em Ciência da Computação",
       photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
     },
-    resumo_ia: "Eduardo Manuel de Freitas Jorge é um pesquisador ativo na área de Ciência da Computação, com ênfase em sistemas móveis e acessibilidade. Seus estudos visam melhorar a experiência do usuário em dispositivos móveis, especialmente para populações vulneráveis.",
-    tags: ["Sistemas Móveis", "Acessibilidade", "Tecnologia Assistiva"],
     productions: [
       {
         id: "0c9ea3bf-7892-4959-af55-a301ea663478",

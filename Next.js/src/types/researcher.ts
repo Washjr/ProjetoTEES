@@ -16,7 +16,10 @@ export interface ResearcherData {
 export interface ResearcherProfileData {
   researcher: ResearcherData;
   productions: ArticleData[];
+  // academicHistory: AcademicHistoryItem[];
+}
+
+export interface ResumeData {
   resumo_ia: string;
   tags: string[];
-  // academicHistory: AcademicHistoryItem[];
 }

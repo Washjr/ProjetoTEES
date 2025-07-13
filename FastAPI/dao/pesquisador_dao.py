@@ -99,6 +99,41 @@ class PesquisadorDAO:
             logger.exception(f"Erro ao buscar pesquisador pelo termo: '{termo}'")
             raise RuntimeError(f"Erro ao buscar pesquisador por termo: {e}")
 
+    def obter_pesquisador_por_id(self, id_pesquisador: str) -> Pesquisador:
+        """
+        Obtém um pesquisador específico pelo ID.
+        Retorna o objeto Pesquisador completo.
+        """
+        sql = (
+            "SELECT id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes "
+            "FROM pesquisador "
+            "WHERE id_pesquisador = %s"
+        )
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (id_pesquisador,))
+                linha = cursor.fetchone()
+                
+                if not linha:
+                    raise LookupError(f"Pesquisador com ID {id_pesquisador} não encontrado")
+                
+                (id_pesq, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes) = linha
+                
+                return Pesquisador(
+                    id_pesquisador=str(id_pesq),
+                    nome=nome,
+                    grau_academico=grau_academico,
+                    resumo=resumo,
+                    citacoes=citacoes,
+                    id_orcid=id_orcid,
+                    id_lattes=id_lattes
+                )
+                
+        except LookupError:
+            raise
+        except Exception as e:
+            logger.exception(f"Erro ao obter pesquisador por ID: {id_pesquisador}")
+            raise RuntimeError(f"Erro ao obter pesquisador por ID: {e}")
 
     def salvar_pesquisador(self, pesquisador:Pesquisador) -> Dict:
         sql = (

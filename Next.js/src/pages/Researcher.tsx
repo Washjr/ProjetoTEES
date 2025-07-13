@@ -1,21 +1,24 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import SearchSummary from '@/components/SearchSummary';
 import SearchResult from '@/components/SearchResult';
-import { ResearcherProfileData } from '@/types/researcher';
+import { ResearcherProfileData, ResumeData } from '@/types/researcher';
 import { ApiService } from '@/services/apiService';
 
 const Researcher = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [researcherProfile, setResearcherProfile] = useState<ResearcherProfileData | null>(null);
+  const [resumeData, setResumeData] = useState<ResumeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingResume, setLoadingResume] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showResume, setShowResume] = useState(false);
 
   useEffect(() => {
     const fetchResearcherProfile = async () => {
@@ -44,6 +47,23 @@ const Researcher = () => {
 
     fetchResearcherProfile();
   }, [id]);
+
+  const handleToggleResume = async () => {
+    if (!showResume && !resumeData && id) {
+      setLoadingResume(true);
+      try {
+        const summary = await ApiService.getResearcherSummary(id);
+        if (summary) {
+          setResumeData(summary);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar resumo do pesquisador:', err);
+      } finally {
+        setLoadingResume(false);
+      }
+    }
+    setShowResume(!showResume);
+  };
 
   if (loading) {
     return (
@@ -120,11 +140,54 @@ const Researcher = () => {
         </div>
 
         {/* Resumo de pesquisa */}
-        <SearchSummary
-          totalResults={productions.length}
-          topKeyword="machine learning"
-          searchTerm={researcher.name}
-        />
+        <Card className="mb-8 bg-white/70 backdrop-blur-sm border-slate-200/50 shadow-sm">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-slate-800">Resumo e Tags</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleResume}
+                className="gap-2 text-slate-600 hover:text-slate-800"
+                disabled={loadingResume}
+              >
+                {loadingResume ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600"></div>
+                ) : showResume ? (
+                  <>
+                    Ocultar <ChevronUp className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    Mostrar <ChevronDown className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          {showResume && resumeData && (
+            <CardContent className="space-y-4">
+              {resumeData.resumo_ia && (
+                <div>
+                  <h3 className="font-semibold text-slate-800 mb-2">Resumo da Pesquisa</h3>
+                  <p className="text-slate-600 leading-relaxed">{resumeData.resumo_ia}</p>
+                </div>
+              )}
+              {resumeData.tags && resumeData.tags.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-slate-800 mb-2">Tags Principais</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {resumeData.tags.map((tag, index) => (
+                      <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
 
         {/* Produções */}
         <Card className="mb-8 bg-white/70 backdrop-blur-sm border-slate-200/50 shadow-sm">

@@ -1,5 +1,5 @@
 import { ArticleData, ResearcherData, ResultArticleData } from '../types';
-import { ResearcherProfileData } from '../types/researcher';
+import { ResearcherProfileData, ResumeData } from '../types/researcher';
 // Para testes sem backend, descomente a linha abaixo e comente as funções do ApiService
 // import { ApiServiceTest as ApiService } from './apiServiceTest';
 
@@ -123,6 +123,29 @@ export class ApiService {
       return profile;
     } catch (error) {
       console.error('Erro ao buscar perfil do pesquisador:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca resumo e tags de um pesquisador pelo ID
+   * Para usar dados mockados para teste, comente este método e descomente o import do ApiServiceTest
+   */
+  static async getResearcherSummary(id: string): Promise<ResumeData | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/pesquisadores/${id}/resumo`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error(`Erro ao buscar resumo do pesquisador: ${response.status} ${response.statusText}`);
+      }
+      
+      const summary: ResumeData = await response.json();
+      return summary;
+    } catch (error) {
+      console.error('Erro ao buscar resumo do pesquisador:', error);
       throw error;
     }
   }
