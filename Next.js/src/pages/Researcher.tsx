@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,43 +7,72 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import SearchSummary from '@/components/SearchSummary';
 import SearchResult from '@/components/SearchResult';
+import { ResearcherProfileData } from '@/types/researcher';
+import { ApiService } from '@/services/apiService';
 
 const Researcher = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [researcherProfile, setResearcherProfile] = useState<ResearcherProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Dados mockados do pesquisador
-  const researcher = {
-    id: id || '1',
-    name: 'Dr. Maria Silva Santos',
-    title: 'Doutora em Ciência da Computação',
-    photo: 'https://images.unsplash.com/photo-1494790108755-2616b612b5bc?w=400&h=400&fit=crop&crop=face',
-    productions: [
-      {
-        id: '1',
-        title: 'Machine Learning Applications in Healthcare: A Comprehensive Review',
-        journal: 'Nature Medicine',
-        year: 2023,
-        issue: '3',
-        qualis: 'A1' as const,
-        abstract: 'This comprehensive review examines the latest machine learning applications in healthcare, focusing on diagnostic accuracy and patient outcomes...'
-      },
-      {
-        id: '2',
-        title: 'Deep Learning for Medical Image Analysis',
-        journal: 'IEEE Transactions on Medical Imaging',
-        year: 2022,
-        issue: '8',
-        qualis: 'A2' as const,
-        abstract: 'We present a novel deep learning approach for medical image analysis that achieves state-of-the-art results in tumor detection...'
+  useEffect(() => {
+    const fetchResearcherProfile = async () => {
+      if (!id) {
+        setError('ID do pesquisador não fornecido');
+        setLoading(false);
+        return;
       }
-    ],
-    academicHistory: [
-      { year: '2020', title: 'Doutorado em Ciência da Computação', institution: 'Universidade de São Paulo' },
-      { year: '2016', title: 'Mestrado em Inteligência Artificial', institution: 'UNICAMP' },
-      { year: '2014', title: 'Bacharelado em Ciência da Computação', institution: 'UFRJ' }
-    ]
-  };
+
+      try {
+        setLoading(true);
+        const profile = await ApiService.getResearcherProfile(id);
+        
+        if (!profile) {
+          setError('Pesquisador não encontrado');
+        } else {
+          setResearcherProfile(profile);
+        }
+      } catch (err) {
+        setError('Erro ao carregar dados do pesquisador');
+        console.error('Erro ao buscar perfil do pesquisador:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchResearcherProfile();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Carregando perfil do pesquisador...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !researcherProfile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">Erro</h2>
+          <p className="text-slate-600 mb-4">{error || 'Pesquisador não encontrado'}</p>
+          <Button onClick={() => navigate('/')} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Voltar para busca
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const { researcher, productions } = researcherProfile;
+  // const { academicHistory } = researcherProfile; // Comentado - não implementado no backend ainda
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -92,7 +121,7 @@ const Researcher = () => {
 
         {/* Resumo de pesquisa */}
         <SearchSummary
-          totalResults={researcher.productions.length}
+          totalResults={productions.length}
           topKeyword="machine learning"
           searchTerm={researcher.name}
         />
@@ -104,13 +133,12 @@ const Researcher = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {researcher.productions.map((article) => (
+              {productions.map((article) => (
                 <SearchResult
                   key={article.id}
                   title={article.title}
                   journal={article.journal}
                   year={article.year}
-                  issue={article.issue}
                   qualis={article.qualis}
                   abstract={article.abstract}
                   searchTerm=""
@@ -120,14 +148,14 @@ const Researcher = () => {
           </CardContent>
         </Card>
 
-        {/* Histórico Acadêmico */}
-        <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 shadow-sm">
+        {/* Histórico Acadêmico - Comentado pois não será implementado agora no backend */}
+        {/* <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 shadow-sm">
           <CardHeader>
             <CardTitle className="text-slate-800">Histórico Acadêmico</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {researcher.academicHistory.map((item, index) => (
+              {academicHistory.map((item, index) => (
                 <div key={index} className="flex gap-4 p-4 border border-slate-200/50 rounded-lg bg-white/50">
                   <Badge variant="outline" className="border-blue-200 text-blue-700">{item.year}</Badge>
                   <div>
@@ -138,7 +166,7 @@ const Researcher = () => {
               ))}
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </main>
     </div>
   );

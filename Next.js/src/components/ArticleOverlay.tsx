@@ -30,9 +30,6 @@ const ArticleOverlay = ({ article, isOpen, onClose, onAuthorClick }: ArticleOver
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{article.year}</Badge>
             <span className="text-sm text-muted-foreground">{article.journal}</span>
-            {article.issue && (
-              <span className="text-sm text-muted-foreground">Issue {article.issue}</span>
-            )}
           </div>
 
           {/* Autores */}

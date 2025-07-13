@@ -87,6 +87,18 @@ class PesquisadorController:
             description="Retorna a foto JPEG do pesquisador, se existir."
         )
 
+        self.router.add_api_route(
+            "/{id_pesquisador}/perfil",
+            self.obter_perfil,
+            response_model=None,
+            methods=["GET"],
+            summary="Obter perfil completo do pesquisador",
+            description=(
+                "Retorna dados completos do pesquisador incluindo informações básicas e lista de artigos. "
+                "Formato compatível com ResearcherProfileData do frontend."
+            )
+        )
+
     def listar(self):
         return self.dao.listar_pesquisadores()
     
@@ -140,6 +152,21 @@ class PesquisadorController:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         except RuntimeError as e:
             logger.error("Erro ao apagar pesquisador: %s", e)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
+    def obter_perfil(self, id_pesquisador: str):
+        """
+        Retorna o perfil completo do pesquisador (dados básicos + artigos).
+        Compatível com o tipo ResearcherProfileData do frontend.
+        """
+        try:
+            return self.dao.obter_perfil_pesquisador(id_pesquisador)
+        
+        except LookupError as e:
+            logger.info("Pesquisador não encontrado para perfil: %s", e)
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        except RuntimeError as e:
+            logger.error("Erro ao obter perfil do pesquisador: %s", e)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     
     def retornar_foto(self, id_pesquisador: str) -> FileResponse:
