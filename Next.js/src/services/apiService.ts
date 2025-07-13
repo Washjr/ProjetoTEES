@@ -1,4 +1,5 @@
 import { ArticleData, ResearcherData, ResultArticleData } from '../types';
+import { ResearcherProfileData } from '../types/researcher';
 // Para testes sem backend, descomente a linha abaixo e comente as funções do ApiService
 // import { ApiServiceTest as ApiService } from './apiServiceTest';
 
@@ -99,6 +100,29 @@ export class ApiService {
       return article;
     } catch (error) {
       console.error('Erro ao buscar artigo:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca perfil completo de um pesquisador pelo ID
+   * Para usar dados mockados para teste, comente este método e descomente o import do ApiServiceTest
+   */
+  static async getResearcherProfile(id: string): Promise<ResearcherProfileData | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/pesquisadores/${id}/perfil`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error(`Erro ao buscar perfil do pesquisador: ${response.status} ${response.statusText}`);
+      }
+      
+      const profile: ResearcherProfileData = await response.json();
+      return profile;
+    } catch (error) {
+      console.error('Erro ao buscar perfil do pesquisador:', error);
       throw error;
     }
   }

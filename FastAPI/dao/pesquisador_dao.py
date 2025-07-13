@@ -185,6 +185,105 @@ class PesquisadorDAO:
             raise RuntimeError(f"Erro ao apagar pesquisador: {e}")
         
 
+    def buscar_artigos_por_pesquisador(self, id_pesquisador: str) -> List[Dict]:
+        """
+        Busca todos os artigos de um pesquisador específico.
+        Retorna no formato compatível com ArticleData.
+        """
+        sql = (
+            "SELECT "
+            "a.id_artigo as id, "
+            "a.nome as title, "
+            "per.nome as journal, "
+            "a.ano as year, "
+            "a.resumo as abstract, "
+            "a.doi, "
+            "per.qualis, "
+            "p.id_pesquisador as author_id, "
+            "p.nome as author_name "
+            "FROM artigo a "
+            "JOIN periodico per ON a.id_periodico = per.id_periodico "
+            "JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
+            "WHERE a.id_pesquisador = %s "
+            "ORDER BY a.ano DESC, a.nome"
+        )
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, (id_pesquisador,))
+                linhas = cursor.fetchall()
+            
+            # Converter para formato ArticleData
+            artigos = []
+            for linha in linhas:
+                (id_artigo, title, journal, year, abstract, doi, qualis,
+                 author_id, author_name) = linha
+                
+                artigo = {
+                    "id": str(id_artigo),
+                    "title": title,
+                    "journal": journal,
+                    "year": year,
+                    "abstract": abstract or "",
+                    "doi": doi,
+                    "qualis": qualis,
+                    "authors": [{
+                        "id": str(author_id),
+                        "name": author_name
+                    }]
+                }
+                artigos.append(artigo)
+            
+            return artigos
+            
+        except Exception as e:
+            logger.exception(f"Erro ao buscar artigos do pesquisador {id_pesquisador}")
+            raise RuntimeError(f"Erro ao buscar artigos do pesquisador: {e}")
+
+    def obter_perfil_pesquisador(self, id_pesquisador: str) -> Dict:
+        """
+        Obtém dados completos do perfil do pesquisador (dados básicos + artigos).
+        Retorna no formato compatível com ResearcherProfileData.
+        """
+        # Buscar dados básicos do pesquisador
+        sql_pesquisador = (
+            "SELECT id_pesquisador, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes "
+            "FROM pesquisador "
+            "WHERE id_pesquisador = %s"
+        )
+        
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql_pesquisador, (id_pesquisador,))
+                linha = cursor.fetchone()
+                
+                if not linha:
+                    raise LookupError(f"Pesquisador com ID {id_pesquisador} não encontrado")
+                
+                # Converter dados do pesquisador para formato ResearcherData
+                (id_pesq, nome, grau_academico, resumo, citacoes, id_orcid, id_lattes) = linha
+                
+                researcher_data = {
+                    "id": str(id_pesq),
+                    "name": nome,
+                    "title": grau_academico,
+                    "photo": self._gerar_url_foto(id_lattes)
+                }
+                
+                # Buscar artigos do pesquisador
+                artigos = self.buscar_artigos_por_pesquisador(id_pesquisador)
+                
+                # Retornar no formato ResearcherProfileData
+                return {
+                    "researcher": researcher_data,
+                    "productions": artigos
+                }
+                
+        except LookupError:
+            raise  # Repassar erro de não encontrado
+        except Exception as e:
+            logger.exception(f"Erro ao obter perfil do pesquisador {id_pesquisador}")
+            raise RuntimeError(f"Erro ao obter perfil do pesquisador: {e}")
+
     def sincronizar_fotos(self) -> None:
         """
         Para cada pesquisador com id_lattes e sem foto sincronizada,
