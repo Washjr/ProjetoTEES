@@ -32,7 +32,7 @@ const SearchResult = ({
     
     return parts.map((part, index) => 
       regex.test(part) ? (
-        <strong key={index} className="font-bold text-foreground">
+        <strong key={index} className="font-bold text-blue-700">
           {part}
         </strong>
       ) : (
@@ -65,8 +65,8 @@ const SearchResult = ({
 
   return (
     <Card 
-      className={`w-full hover:shadow-md transition-all duration-200 border hover:border-primary/30 overflow-hidden ${
-        onClick ? 'cursor-pointer' : ''
+      className={`w-full hover:shadow-md transition-all duration-200 border-slate-200/50 bg-white/70 backdrop-blur-sm hover:border-blue-300/50 overflow-hidden ${
+        onClick ? 'cursor-pointer hover:bg-white/90' : ''
       }`}
       onClick={onClick}
     >
@@ -80,29 +80,29 @@ const SearchResult = ({
           <div className="flex flex-col space-y-3">
             {/* Header com título e ano */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-              <h3 className="text-lg font-semibold leading-tight hover:text-primary transition-colors flex-1">
+              <h3 className="text-lg font-semibold leading-tight text-slate-800 hover:text-blue-600 transition-colors flex-1">
                 {title}
               </h3>
               <div className="flex gap-2 self-start">
                 {qualis && (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200">
                     {qualis}
                   </Badge>
                 )}
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs border-slate-300 text-slate-600">
                   {year}
                 </Badge>
               </div>
             </div>
             
             {/* Informações da publicação */}
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-600">
               {publicationInfo}
             </p>
             
             {/* Abstract */}
-            <div className="text-sm text-muted-foreground leading-relaxed">
-              <p className="italic mb-1">Abstract:</p>
+            <div className="text-sm text-slate-600 leading-relaxed">
+              <p className="italic mb-1 text-slate-700">Abstract:</p>
               <p className="line-clamp-3">
                 {highlightText(abstract, searchTerm)}
               </p>
