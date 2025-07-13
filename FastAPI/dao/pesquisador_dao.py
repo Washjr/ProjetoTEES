@@ -1,10 +1,12 @@
 import logging
 from typing import List, Dict
+from pathlib import Path
 from psycopg2 import IntegrityError
 
 from banco.conexao_db import Conexao
 from model.pesquisador import Pesquisador
 from foto_lattes import buscar_codigo_lattes, baixar_foto_pesquisador
+from config import configuracoes
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,22 @@ class PesquisadorDAO:
     def __del__(self):
         Conexao.devolver_conexao(self.conexao)
 
+    def _gerar_url_foto(self, id_lattes: str) -> str:
+        """
+        Gera a URL completa da foto do pesquisador.
+        Verifica se o arquivo existe fisicamente, caso contrário retorna URL de imagem padrão.
+        """
+        if not id_lattes:
+            logger.warning("ID Lattes não fornecido. Usando imagem padrão.")
+            return f"{configuracoes.BASE_URL}/imagens/pesquisadores/default.jpg"
+        
+        caminho_foto = Path(__file__).parent.parent / "imagens" / "pesquisadores" / f"{id_lattes}.jpg"
+        
+        if caminho_foto.exists():
+            return f"{configuracoes.BASE_URL}/imagens/pesquisadores/{id_lattes}.jpg"
+        else:
+            logger.warning(f"Foto não encontrada para id_lattes: {id_lattes}. Usando imagem padrão.")
+            return f"{configuracoes.BASE_URL}/imagens/pesquisadores/default.jpg"
 
     def listar_pesquisadores(self) -> List[Dict]:
         sql = (
@@ -30,7 +48,20 @@ class PesquisadorDAO:
                 cursor.execute(sql)
                 colunas = [desc[0] for desc in cursor.description]
                 linhas = cursor.fetchall()
-            return [dict(zip(colunas, linha)) for linha in linhas]
+                
+                # Converte para formato compatível com ResearcherData
+                resultado = []
+                for linha in linhas:
+                    pesquisador = dict(zip(colunas, linha))
+                    researcher_data = {
+                        "id": str(pesquisador["id_pesquisador"]),
+                        "name": pesquisador["nome"],
+                        "title": pesquisador["grau_academico"],
+                        "photo": self._gerar_url_foto(pesquisador["id_lattes"])
+                    }
+                    resultado.append(researcher_data)
+                
+            return resultado
         
         except Exception as e:
             logger.exception("Erro ao listar pesquisadores")
@@ -49,8 +80,21 @@ class PesquisadorDAO:
 
                 cursor.execute(sql, (termo_formatado,))
                 colunas = [desc[0] for desc in cursor.description]
-                linhas = cursor.fetchall()                
-            return [dict(zip(colunas, linha)) for linha in linhas]
+                linhas = cursor.fetchall()
+                
+                # Converte para formato compatível com ResearcherData
+                resultado = []
+                for linha in linhas:
+                    pesquisador = dict(zip(colunas, linha))
+                    researcher_data = {
+                        "id": str(pesquisador["id_pesquisador"]),
+                        "name": pesquisador["nome"],
+                        "title": pesquisador["grau_academico"],
+                        "photo": self._gerar_url_foto(pesquisador["id_lattes"])
+                    }
+                    resultado.append(researcher_data)
+                
+            return resultado
         except Exception as e:
             logger.exception(f"Erro ao buscar pesquisador pelo termo: '{termo}'")
             raise RuntimeError(f"Erro ao buscar pesquisador por termo: {e}")

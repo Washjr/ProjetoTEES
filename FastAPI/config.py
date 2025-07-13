@@ -12,6 +12,9 @@ class Configuracoes(BaseSettings):
 
     # OpenAI / LangChain
     OPENAI_API_KEY: str
+    
+    # Servidor
+    BASE_URL: str = "http://localhost:8000"
 
     class Config:
         env_file = ".env"

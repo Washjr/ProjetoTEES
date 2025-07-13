@@ -63,6 +63,9 @@ app.include_router(software_router)
 # Montagem de arquivos estáticos (HTML, CSS, JS, etc.)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Montagem do diretório de imagens
+app.mount("/imagens", StaticFiles(directory="imagens"), name="imagens")
+
 # Endpoint de página inicial
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
