@@ -9,3 +9,8 @@ export interface ArticleData {
   authors: Array<{ id: string; name: string }>;
   qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'NP';
 }
+
+export interface ResultArticleData {
+  resultados: ArticleData[];
+  resumo_ia: string;
+}

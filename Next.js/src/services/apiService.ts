@@ -1,42 +1,45 @@
-import { ArticleData, ResearcherData } from '../types';
+import { ArticleData, ResearcherData, ResultArticleData } from '../types';
 
 // Constante para facilitar a troca quando a API estiver pronta
-const API_BASE_URL = "https://api.exemplo.com";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 // Dados de exemplo (serão removidos quando a API estiver pronta)
-const mockResults: ArticleData[] = [
-  {
-    id: "1",
-    title:
-      "Advances in Machine Learning Applications for Healthcare Diagnostics",
-    journal: "Nature Medicine",
-    year: 2023,
-    issue: "3",
-    abstract:
-      "Recent developments in machine learning have revolutionized healthcare diagnostics, enabling more accurate and faster detection of diseases. This study presents a comprehensive analysis of machine learning algorithms applied to medical imaging and patient data, demonstrating significant improvements in diagnostic accuracy across multiple medical specialties.",
-    doi: "10.1038/s41591-023-01234-5",
-    authors: [
-      { id: "1", name: "Dr. Maria Silva Santos" },
-      { id: "2", name: "Dr. João Paulo Lima" },
-    ],
-    qualis: "A1",
-  },
-  {
-    id: "2",
-    title: "Climate Change Impact on Marine Ecosystems",
-    journal: "Environmental Science",
-    year: 2023,
-    issue: "2",
-    qualis: "A1",
-    abstract:
-      "This comprehensive study examines the effects of climate change on marine biodiversity and ecosystem stability. Through extensive data analysis and field research, we demonstrate significant correlations between rising ocean temperatures and species migration patterns.",
-    doi: "10.1016/j.envres.2023.01234",
-    authors: [
-      { id: "3", name: "Dra. Ana Costa Ferreira" },
-      { id: "4", name: "Dr. Carlos Eduardo Silva" },
-    ],
-  },
-];
+const mockResult: ResultArticleData = {
+  resultados: [
+    {
+      id: "1",
+      title:
+        "Advances in Machine Learning Applications for Healthcare Diagnostics",
+      journal: "Nature Medicine",
+      year: 2023,
+      issue: "3",
+      abstract:
+        "Recent developments in machine learning have revolutionized healthcare diagnostics, enabling more accurate and faster detection of diseases. This study presents a comprehensive analysis of machine learning algorithms applied to medical imaging and patient data, demonstrating significant improvements in diagnostic accuracy across multiple medical specialties.",
+      doi: "10.1038/s41591-023-01234-5",
+      authors: [
+        { id: "1", name: "Dr. Maria Silva Santos" },
+        { id: "2", name: "Dr. João Paulo Lima" },
+      ],
+      qualis: "A1",
+    },
+    {
+      id: "2",
+      title: "Climate Change Impact on Marine Ecosystems",
+      journal: "Environmental Science",
+      year: 2023,
+      issue: "2",
+      qualis: "A1",
+      abstract:
+        "This comprehensive study examines the effects of climate change on marine biodiversity and ecosystem stability. Through extensive data analysis and field research, we demonstrate significant correlations between rising ocean temperatures and species migration patterns.",
+      doi: "10.1016/j.envres.2023.01234",
+      authors: [
+        { id: "3", name: "Dra. Ana Costa Ferreira" },
+        { id: "4", name: "Dr. Carlos Eduardo Silva" },
+      ],
+    },
+  ],
+  resumo_ia: "Esta busca retornou artigos relevantes sobre machine learning em healthcare e mudanças climáticas em ecossistemas marinhos. Ambos os estudos demonstram avanços significativos em suas respectivas áreas, com metodologias robustas e resultados impactantes para a comunidade científica.",
+};
 
 const mockResearchers: ResearcherData[] = [
   {
@@ -73,7 +76,7 @@ export class ApiService {
   /**
    * Busca artigos baseado no termo de pesquisa
    */
-  static async searchArticles(searchTerm: string): Promise<ArticleData[]> {
+  static async searchArticles(searchTerm: string): Promise<ResultArticleData> {
     try {
       // TODO: Implementar chamada real da API quando estiver pronta
       // const response = await fetch(`${API_BASE_URL}/articles/search?q=${encodeURIComponent(searchTerm)}`);
@@ -86,7 +89,7 @@ export class ApiService {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       
       // Retorno temporário com dados de exemplo (a API já retornará os resultados filtrados)
-      return mockResults;
+      return mockResult;
     } catch (error) {
       console.error('Erro ao buscar artigos:', error);
       throw error;
@@ -155,7 +158,7 @@ export class ApiService {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
       // Retorno temporário com dados de exemplo
-      return mockResults.find(article => article.id === id) || null;
+      return mockResult.resultados.find(article => article.id === id) || null;
     } catch (error) {
       console.error('Erro ao buscar artigo:', error);
       throw error;

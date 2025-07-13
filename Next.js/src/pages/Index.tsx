@@ -9,7 +9,7 @@ import ResearcherCard from "@/components/ResearcherCard";
 import ArticleOverlay from "@/components/ArticleOverlay";
 import SearchPagination from "@/components/SearchPagination";
 import { ApiService } from "@/services/apiService";
-import { ArticleData, ResearcherData } from "@/types";
+import { ArticleData, ResearcherData, ResultArticleData } from "@/types";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -19,6 +19,7 @@ const Index = () => {
   const [searchMode, setSearchMode] = useState<SearchMode>("articles");
   const [results, setResults] = useState<ArticleData[]>([]);
   const [researchers, setResearchers] = useState<ResearcherData[]>([]);
+  const [aiSummary, setAiSummary] = useState<string>("");
   const [selectedArticle, setSelectedArticle] =
     useState<ArticleData | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
@@ -37,13 +38,15 @@ const Index = () => {
     try {
       if (mode === "articles") {
         const searchResults = await ApiService.searchArticles(query);
-        setResults(searchResults);
+        setResults(searchResults.resultados);
+        setAiSummary(searchResults.resumo_ia);
         setResearchers([]);
-        setTotalPages(Math.ceil(searchResults.length / 5));
+        setTotalPages(Math.ceil(searchResults.resultados.length / 5));
       } else {
         const searchResearchers = await ApiService.searchResearchers(query);
         setResearchers(searchResearchers);
         setResults([]);
+        setAiSummary("");
         setTotalPages(Math.ceil(searchResearchers.length / 8));
       }
     } catch (error) {
@@ -51,6 +54,7 @@ const Index = () => {
       // Em caso de erro, limpar os resultados
       setResults([]);
       setResearchers([]);
+      setAiSummary("");
       setTotalPages(1);
     } finally {
       setIsLoading(false);
@@ -77,6 +81,7 @@ const Index = () => {
     setSearchTerm("");
     setResults([]);
     setResearchers([]);
+    setAiSummary("");
     setCurrentPage(1);
     setTotalPages(1);
     setIsLoading(false);
@@ -203,6 +208,7 @@ const Index = () => {
                     totalResults={getTotalResults()}
                     topKeyword={getTopKeyword()}
                     searchTerm={searchTerm}
+                    aiSummary={aiSummary}
                   />
                 )}
 

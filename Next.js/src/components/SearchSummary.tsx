@@ -7,9 +7,10 @@ interface SearchSummaryProps {
   totalResults: number;
   topKeyword: string;
   searchTerm: string;
+  aiSummary?: string;
 }
 
-const SearchSummary = ({ totalResults, topKeyword, searchTerm }: SearchSummaryProps) => {
+const SearchSummary = ({ totalResults, topKeyword, searchTerm, aiSummary }: SearchSummaryProps) => {
   // Tags simuladas baseadas na pesquisa
   const mockTags = [
     'machine learning',
@@ -22,7 +23,8 @@ const SearchSummary = ({ totalResults, topKeyword, searchTerm }: SearchSummaryPr
     'processamento'
   ];
 
-  const summaryText = `A busca por "${searchTerm}" retornou ${totalResults} documentos científicos relevantes. Os resultados abrangem principalmente pesquisas relacionadas a ${topKeyword} e suas aplicações em diferentes áreas. A análise dos documentos mostra uma concentração de estudos em métodos computacionais avançados e suas implementações práticas na área da saúde e medicina.`;
+  // Usar o resumo da IA se disponível, senão usar o resumo padrão
+  const summaryText = aiSummary || `A busca por "${searchTerm}" retornou ${totalResults} documentos científicos relevantes. Os resultados abrangem principalmente pesquisas relacionadas a ${topKeyword} e suas aplicações em diferentes áreas. A análise dos documentos mostra uma concentração de estudos em métodos computacionais avançados e suas implementações práticas na área da saúde e medicina.`;
 
   return (
     <Card className="w-full mb-6 shadow-md border-0 bg-card">
