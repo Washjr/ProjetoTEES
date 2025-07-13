@@ -1,6 +1,6 @@
 # Projeto TEES
 
-Este repositório contém o backend (PostgreSQL com pgvector) e o frontend (Next.js) do Projeto TEES.
+Este repositório contém o backend (PostgreSQL com pgvector) e o frontend (Next.js) do Projeto Final da Discicplina TEES.
 
 ## Configuração Inicial
 
@@ -30,7 +30,7 @@ Isso criará e executará um container PostgreSQL na porta 5445. É possivel vis
 
  ## 3. Inicie o Frontend (Next.js)
 
- Navegue até o diretório Next.js:
+ Navegue até o diretório `Next.js`:
 
 cd ..\Next.js
 
