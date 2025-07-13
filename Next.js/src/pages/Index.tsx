@@ -71,6 +71,21 @@ const Index = () => {
     navigate(`/researcher/${researcherId}`);
   };
 
+  const handleLogoClick = () => {
+    // Limpar todos os estados da pesquisa
+    setHasSearched(false);
+    setSearchTerm("");
+    setResults([]);
+    setResearchers([]);
+    setCurrentPage(1);
+    setTotalPages(1);
+    setIsLoading(false);
+    setSelectedArticle(null);
+    setIsOverlayOpen(false);
+    // Navegar para a página inicial
+    navigate('/');
+  };
+
   const getTotalResults = () =>
     searchMode === "articles" ? results.length : researchers.length;
   const getTopKeyword = () => {
@@ -85,7 +100,10 @@ const Index = () => {
       <header className="border-b border-slate-200/50 bg-white/70 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            <div 
+              className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={handleLogoClick}
+            >
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">AE</span>
               </div>
