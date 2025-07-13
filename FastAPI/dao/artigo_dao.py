@@ -1,7 +1,6 @@
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict
 from psycopg2 import IntegrityError
-import requests
 
 from banco.conexao_db import Conexao
 from model.artigo import Artigo
@@ -23,15 +22,56 @@ class ArtigoDAO:
     
     def listar_artigos(self) -> List[Dict]: 
         sql = (
-            "SELECT id_artigo, nome, ano, resumo, doi, id_pesquisador, id_periodico "
-            "FROM artigo "
+            "SELECT "
+            "a.id_artigo as id, "
+            "a.nome as title, "
+            "per.nome as journal, "
+            "a.ano as year, "
+            "a.resumo as abstract, "
+            "a.doi, "
+            "per.qualis, "
+            "p.id_pesquisador as author_id, "
+            "p.nome as author_name "
+            "FROM artigo a "
+            "JOIN periodico per ON a.id_periodico = per.id_periodico "
+            "JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
+            "ORDER BY a.id_artigo"
         )
         try:
             with self.conexao.cursor() as cursor:
                 cursor.execute(sql)
-                colunas = [desc[0] for desc in cursor.description]
-                linhas = cursor.fetchall()  
-            return [dict(zip(colunas, linha)) for linha in linhas]
+                linhas = cursor.fetchall()
+            
+            # Agrupar resultados por artigo para lidar com múltiplos autores
+            artigos_dict = {}
+            for linha in linhas:
+                (id_artigo, title, journal, year, abstract, doi, qualis, 
+                 author_id, author_name) = linha
+                
+                if id_artigo not in artigos_dict:
+                    artigos_dict[id_artigo] = {
+                        "id": str(id_artigo),
+                        "title": title,
+                        "journal": journal,
+                        "year": year,
+                        "abstract": abstract or "",
+                        "doi": doi,
+                        "qualis": qualis,
+                        "authors": []
+                    }
+                
+                # Adicionar autor se não existir
+                author_exists = any(
+                    author["id"] == str(author_id) 
+                    for author in artigos_dict[id_artigo]["authors"]
+                )
+                if not author_exists:
+                    artigos_dict[id_artigo]["authors"].append({
+                        "id": str(author_id),
+                        "name": author_name
+                    })
+            
+            return list(artigos_dict.values())
 
         except Exception as e:
             logger.exception("Erro ao listar artigos")
@@ -40,19 +80,61 @@ class ArtigoDAO:
 
     def buscar_por_termo(self, termo: str) -> List[Dict]:
         sql = (
-            "SELECT id_artigo, nome, ano, resumo, doi, id_pesquisador, id_periodico "
-            "FROM artigo "
-            "WHERE unaccent(lower(nome)) ILIKE unaccent(lower(%s)) "
-            "OR unaccent(lower(resumo)) ILIKE unaccent(lower(%s)) "
+            "SELECT "
+            "a.id_artigo as id, "
+            "a.nome as title, "
+            "per.nome as journal, "
+            "a.ano as year, "
+            "a.resumo as abstract, "
+            "a.doi, "
+            "per.qualis, "
+            "p.id_pesquisador as author_id, "
+            "p.nome as author_name "
+            "FROM artigo a "
+            "JOIN periodico per ON a.id_periodico = per.id_periodico "
+            "JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
+            "WHERE unaccent(lower(a.nome)) ILIKE unaccent(lower(%s)) "
+            "OR unaccent(lower(a.resumo)) ILIKE unaccent(lower(%s)) "
+            "ORDER BY a.id_artigo"
         )
         try:
             with self.conexao.cursor() as cursor:
                 termo_formatado = f"%{termo.strip()}%"
                 
                 cursor.execute(sql, (termo_formatado, termo_formatado))
-                colunas = [desc[0] for desc in cursor.description]
                 linhas = cursor.fetchall()
-            return [dict(zip(colunas, linha)) for linha in linhas]
+            
+            # Agrupar resultados por artigo para lidar com múltiplos autores
+            artigos_dict = {}
+            for linha in linhas:
+                (id_artigo, title, journal, year, abstract, doi, qualis, 
+                 author_id, author_name) = linha
+                
+                if id_artigo not in artigos_dict:
+                    artigos_dict[id_artigo] = {
+                        "id": str(id_artigo),
+                        "title": title,
+                        "journal": journal,
+                        "year": year,
+                        "abstract": abstract or "",
+                        "doi": doi,
+                        "qualis": qualis,
+                        "authors": []
+                    }
+                
+                # Adicionar autor se não existir
+                author_exists = any(
+                    author["id"] == str(author_id) 
+                    for author in artigos_dict[id_artigo]["authors"]
+                )
+                if not author_exists:
+                    artigos_dict[id_artigo]["authors"].append({
+                        "id": str(author_id),
+                        "name": author_name
+                    })
+            
+            return list(artigos_dict.values())
+            
         except Exception as e:
             logger.exception(f"Erro ao buscar artigo pelo termo: '{termo}'")
             raise RuntimeError(f"Erro ao buscar artigo por termo: {e}")

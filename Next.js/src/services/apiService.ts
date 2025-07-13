@@ -1,95 +1,34 @@
 import { ArticleData, ResearcherData, ResultArticleData } from '../types';
+// Para testes sem backend, descomente a linha abaixo e comente as funções do ApiService
+// import { ApiServiceTest as ApiService } from './apiServiceTest';
 
 // Constante para facilitar a troca quando a API estiver pronta
 const API_BASE_URL = "http://127.0.0.1:8000";
 
-// Dados de exemplo (serão removidos quando a API estiver pronta)
-const mockResult: ResultArticleData = {
-  resultados: [
-    {
-      id: "1",
-      title:
-        "Advances in Machine Learning Applications for Healthcare Diagnostics",
-      journal: "Nature Medicine",
-      year: 2023,
-      issue: "3",
-      abstract:
-        "Recent developments in machine learning have revolutionized healthcare diagnostics, enabling more accurate and faster detection of diseases. This study presents a comprehensive analysis of machine learning algorithms applied to medical imaging and patient data, demonstrating significant improvements in diagnostic accuracy across multiple medical specialties.",
-      doi: "10.1038/s41591-023-01234-5",
-      authors: [
-        { id: "1", name: "Dr. Maria Silva Santos" },
-        { id: "2", name: "Dr. João Paulo Lima" },
-      ],
-      qualis: "A1",
-    },
-    {
-      id: "2",
-      title: "Climate Change Impact on Marine Ecosystems",
-      journal: "Environmental Science",
-      year: 2023,
-      issue: "2",
-      qualis: "A1",
-      abstract:
-        "This comprehensive study examines the effects of climate change on marine biodiversity and ecosystem stability. Through extensive data analysis and field research, we demonstrate significant correlations between rising ocean temperatures and species migration patterns.",
-      doi: "10.1016/j.envres.2023.01234",
-      authors: [
-        { id: "3", name: "Dra. Ana Costa Ferreira" },
-        { id: "4", name: "Dr. Carlos Eduardo Silva" },
-      ],
-    },
-  ],
-  resumo_ia: "Esta busca retornou artigos relevantes sobre machine learning em healthcare e mudanças climáticas em ecossistemas marinhos. Ambos os estudos demonstram avanços significativos em suas respectivas áreas, com metodologias robustas e resultados impactantes para a comunidade científica.",
-};
-
-const mockResearchers: ResearcherData[] = [
-  {
-    id: "1",
-    name: "Dr. Maria Silva Santos",
-    title: "Doutora em Ciência da Computação",
-    photo:
-      "https://images.unsplash.com/photo-1494790108755-2616b612b5bc?w=400&h=400&fit=crop&crop=face",
-  },
-  {
-    id: "2",
-    name: "Dr. João Paulo Lima",
-    title: "Doutor em Inteligência Artificial",
-    photo:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
-  },
-  {
-    id: "3",
-    name: "Dra. Ana Costa Ferreira",
-    title: "Doutora em Medicina",
-    photo:
-      "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&crop=face",
-  },
-  {
-    id: "4",
-    name: "Dr. Carlos Eduardo Silva",
-    title: "Doutor em Engenharia Biomédica",
-    photo:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
-  },
-];
-
 export class ApiService {
   /**
    * Busca artigos baseado no termo de pesquisa
+   * Para usar dados mockados para teste, comente este método e descomente o import do ApiServiceTest
    */
-  static async searchArticles(searchTerm: string): Promise<ResultArticleData> {
+  static async searchArticles(searchTerm: string, incluirResumo: boolean = false): Promise<ResultArticleData> {
     try {
-      // TODO: Implementar chamada real da API quando estiver pronta
-      // const response = await fetch(`${API_BASE_URL}/articles/search?q=${encodeURIComponent(searchTerm)}`);
-      // if (!response.ok) {
-      //   throw new Error('Erro ao buscar artigos');
-      // }
-      // return await response.json();
-
-      // Simular delay da API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const response = await fetch(
+        `${API_BASE_URL}/artigos/buscar?termo=${encodeURIComponent(searchTerm)}&incluir_resumo=${incluirResumo}`
+      );
       
-      // Retorno temporário com dados de exemplo (a API já retornará os resultados filtrados)
-      return mockResult;
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar artigos: ${response.status} ${response.statusText}`);
+      }
+      
+      const articles: ArticleData[] = await response.json();
+      
+      // Transformar o resultado para o formato esperado pelo frontend
+      const result: ResultArticleData = {
+        resultados: articles,
+        resumo_ia: incluirResumo ? "Resumo gerado pela IA baseado nos resultados da busca." : ""
+      };
+      
+      return result;
     } catch (error) {
       console.error('Erro ao buscar artigos:', error);
       throw error;
@@ -98,21 +37,20 @@ export class ApiService {
 
   /**
    * Busca pesquisadores baseado no termo de pesquisa
+   * Para usar dados mockados para teste, comente este método e descomente o import do ApiServiceTest
    */
   static async searchResearchers(searchTerm: string): Promise<ResearcherData[]> {
     try {
-      // TODO: Implementar chamada real da API quando estiver pronta
-      // const response = await fetch(`${API_BASE_URL}/researchers/search?q=${encodeURIComponent(searchTerm)}`);
-      // if (!response.ok) {
-      //   throw new Error('Erro ao buscar pesquisadores');
-      // }
-      // return await response.json();
-
-      // Simular delay da API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const response = await fetch(
+        `${API_BASE_URL}/pesquisadores/buscar?termo=${encodeURIComponent(searchTerm)}`
+      );
       
-      // Retorno temporário com dados de exemplo (a API já retornará os resultados filtrados)
-      return mockResearchers;
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar pesquisadores: ${response.status} ${response.statusText}`);
+      }
+      
+      const researchers: ResearcherData[] = await response.json();
+      return researchers;
     } catch (error) {
       console.error('Erro ao buscar pesquisadores:', error);
       throw error;
@@ -121,21 +59,21 @@ export class ApiService {
 
   /**
    * Busca detalhes de um pesquisador pelo ID
+   * Para usar dados mockados para teste, comente este método e descomente o import do ApiServiceTest
    */
   static async getResearcherById(id: string): Promise<ResearcherData | null> {
     try {
-      // TODO: Implementar chamada real da API quando estiver pronta
-      // const response = await fetch(`${API_BASE_URL}/researchers/${id}`);
-      // if (!response.ok) {
-      //   throw new Error('Pesquisador não encontrado');
-      // }
-      // return await response.json();
-
-      // Simular delay da API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await fetch(`${API_BASE_URL}/pesquisadores/${id}`);
       
-      // Retorno temporário com dados de exemplo
-      return mockResearchers.find(researcher => researcher.id === id) || null;
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error(`Erro ao buscar pesquisador: ${response.status} ${response.statusText}`);
+      }
+      
+      const researcher: ResearcherData = await response.json();
+      return researcher;
     } catch (error) {
       console.error('Erro ao buscar pesquisador:', error);
       throw error;
@@ -144,24 +82,40 @@ export class ApiService {
 
   /**
    * Busca detalhes de um artigo pelo ID
+   * Para usar dados mockados para teste, comente este método e descomente o import do ApiServiceTest
    */
   static async getArticleById(id: string): Promise<ArticleData | null> {
     try {
-      // TODO: Implementar chamada real da API quando estiver pronta
-      // const response = await fetch(`${API_BASE_URL}/articles/${id}`);
-      // if (!response.ok) {
-      //   throw new Error('Artigo não encontrado');
-      // }
-      // return await response.json();
-
-      // Simular delay da API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await fetch(`${API_BASE_URL}/artigos/${id}`);
       
-      // Retorno temporário com dados de exemplo
-      return mockResult.resultados.find(article => article.id === id) || null;
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error(`Erro ao buscar artigo: ${response.status} ${response.statusText}`);
+      }
+      
+      const article: ArticleData = await response.json();
+      return article;
     } catch (error) {
       console.error('Erro ao buscar artigo:', error);
       throw error;
     }
   }
 }
+
+/*
+ * INSTRUÇÕES PARA ALTERNAR ENTRE MODO PRODUÇÃO E TESTE:
+ * 
+ * MODO PRODUÇÃO (atual - conecta ao backend real):
+ * - Mantém o código como está
+ * - Usa as funções do ApiService que fazem chamadas HTTP reais
+ * 
+ * MODO TESTE (usa dados mockados):
+ * 1. Descomente a linha: import { ApiServiceTest as ApiService } from './apiServiceTest';
+ * 2. Comente a linha: import { ArticleData, ResearcherData, ResultArticleData } from '../types';
+ * 3. Comente toda a classe ApiService (linhas 8-85)
+ * 
+ * Dessa forma, o import renomeado fará com que o ApiServiceTest seja usado
+ * no lugar do ApiService em todo o projeto, sem precisar alterar outras partes do código.
+ */

@@ -222,7 +222,6 @@ const Index = () => {
                           title={result.title}
                           journal={result.journal}
                           year={result.year}
-                          issue={result.issue}
                           qualis={result.qualis}
                           abstract={result.abstract}
                           searchTerm={searchTerm}

@@ -10,7 +10,7 @@ interface SearchResultProps {
   issue?: string;
   abstract: string;
   searchTerm: string;
-  qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'NP';
+  qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'SQ';
   onClick?: () => void;
 }
 
@@ -52,7 +52,7 @@ const SearchResult = ({
       case 'B3': return 'bg-orange-400';
       case 'B4': return 'bg-orange-300';
       case 'C': return 'bg-red-500';
-      case 'NP': return 'bg-gray-400';
+      case 'SQ': return 'bg-gray-400';
       default: return 'bg-transparent';
     }
   };
