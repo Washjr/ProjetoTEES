@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -101,12 +100,14 @@ const SearchResult = ({
             </p>
             
             {/* Abstract */}
-            <div className="text-sm text-slate-600 leading-relaxed">
-              <p className="italic mb-1 text-slate-700">Abstract:</p>
-              <p className="line-clamp-3">
-                {highlightText(abstract, searchTerm)}
-              </p>
-            </div>
+            {abstract && abstract.trim() && (
+              <div className="text-sm text-slate-600 leading-relaxed">
+                <p className="italic mb-1 text-slate-700">Abstract:</p>
+                <p className="line-clamp-3">
+                  {highlightText(abstract, searchTerm)}
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </div>
