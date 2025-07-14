@@ -5,5 +5,6 @@ venv*/
 .env
 .env.*
 virtual_environment/
-imagens/
+imagens/*
+!imagens/.gitkeep
 __pycache__/

@@ -24,7 +24,8 @@ class ArtigoController:
         self.router.add_api_route(
             "/",
             self.listar,
-            response_model=List[Artigo],
+            # response_model=List[Artigo],
+            response_model=None,
             methods=["GET"],
             summary="Listar artigos",
             description="Retorna todos os artigos cadastrados no sistema."

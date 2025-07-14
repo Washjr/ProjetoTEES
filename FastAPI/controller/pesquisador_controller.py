@@ -26,7 +26,8 @@ class PesquisadorController:
         self.router.add_api_route(
             "/",
             self.listar,
-            response_model=List[Pesquisador],
+            # response_model=List[Pesquisador],
+            response_model=None,
             methods=["GET"],
             summary="Listar pesquisadores",
             description="Retorna todos os pesquisadores cadastrados no sistema."
