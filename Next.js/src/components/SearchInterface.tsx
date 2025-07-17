@@ -45,7 +45,7 @@ const SearchInterface = ({ onSearch, isLoading = false }: SearchInterfaceProps) 
           />
         </div>
 
-        <div className="flex flex-wrap gap-2 mt-4">
+        {/* <div className="flex flex-wrap gap-2 mt-4">
           {searchMode === "articles" ? (
             <>
               <button 
@@ -101,7 +101,7 @@ const SearchInterface = ({ onSearch, isLoading = false }: SearchInterfaceProps) 
               </button>
             </>
           )}
-        </div>
+        </div> */}
       </div>
     </div>
   );
