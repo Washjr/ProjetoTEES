@@ -6,7 +6,8 @@ import logging
 
 from dao.pesquisador_dao import PesquisadorDAO
 from model.pesquisador import Pesquisador
-from langchain_service import LangchainService
+from service.langchain import LangchainService
+from service.semantic_search import SemanticSearchService
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,9 @@ class PesquisadorController:
     """
     def __init__(self):
         self.dao = PesquisadorDAO()
-        self.router = APIRouter(prefix="/pesquisadores", tags=["pesquisadores"])
         self.summarizer = LangchainService()
+        self.semantic = SemanticSearchService()
+        self.router = APIRouter(prefix="/pesquisadores", tags=["pesquisadores"])
         self._register_routes()
 
     def _register_routes(self):
@@ -42,6 +44,18 @@ class PesquisadorController:
             description=(
                 "Retorna os pesquisadores cujo nome contém o termo passado. "
                 "Pode também incluir um resumo geral dos resultados se `incluir_resumo=true`."
+            )
+        )
+
+        self.router.add_api_route(
+            "/busca_semantica",
+            self.busca_semantica_pesquisadores,
+            response_model=None,
+            methods=["GET"],
+            summary="Busca semântica em pesquisadores",
+            description=(
+                "Realiza busca semântica usando embeddings para retornar pesquisadores "
+                "ordenados por relevância no contexto da consulta."
             )
         )
 
@@ -111,6 +125,7 @@ class PesquisadorController:
                 "Formato compatível com ResumeData do frontend."
             )
         )
+        
 
     def listar(self):
         return self.dao.listar_pesquisadores()
@@ -132,6 +147,25 @@ class PesquisadorController:
         except Exception as e:
             logger.exception("Erro ao buscar pesquisador pelo termo: {termo}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    def busca_semantica_pesquisadores(
+        self,
+        termo: str = Query(..., min_length=1),
+        k: int = Query(10, ge=1, le=50)
+    ):        
+        try:
+            resultados = self.semantic.semantic_search(termo, k, tipo="pesquisador")
+
+            return {
+                "query": termo,
+                "resultados": [
+                    {"documento": doc, "score": score} for doc, score in resultados
+                ]
+            }
+        
+        except Exception as e:
+            logger.error(f"Erro na busca semântica de pesquisadores: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     def adicionar(self, pesquisador: Pesquisador):
         try:

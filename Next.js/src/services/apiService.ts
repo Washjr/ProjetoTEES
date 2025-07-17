@@ -11,7 +11,7 @@ export class ApiService {
    * Busca artigos baseado no termo de pesquisa
    * Para usar dados mockados para teste, comente este método e descomente o import do ApiServiceTest
    */
-  static async searchArticles(searchTerm: string, incluirResumo: boolean = false): Promise<ResultArticleData> {
+  static async searchArticles(searchTerm: string, incluirResumo: boolean = true): Promise<ResultArticleData> {
     try {
       const response = await fetch(
         `${API_BASE_URL}/artigos/buscar?termo=${encodeURIComponent(searchTerm)}&incluir_resumo=${incluirResumo}`

@@ -4,7 +4,8 @@ import logging
 
 from dao.artigo_dao import ArtigoDAO
 from model.artigo import Artigo
-from langchain_service import LangchainService
+from service.langchain import LangchainService
+from service.semantic_search import SemanticSearchService
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +17,9 @@ class ArtigoController:
     """
     def __init__(self):
         self.dao = ArtigoDAO()
-        self.router = APIRouter(prefix="/artigos", tags=["artigos"])
         self.summarizer = LangchainService()
+        self.semantic = SemanticSearchService()
+        self.router = APIRouter(prefix="/artigos", tags=["artigos"])
         self._register_routes()
 
     def _register_routes(self):
@@ -40,6 +42,18 @@ class ArtigoController:
             description=(
                 "Retorna os artigos cujo nome ou resumo contém o termo passado. "
                 "Pode também incluir um resumo geral dos resultados se `incluir_resumo=true`."
+            )
+        )
+
+        self.router.add_api_route(
+            "/busca_semantica",
+            self.busca_semantica_artigos,
+            response_model=None,
+            methods=["GET"],
+            summary="Busca semântica em artigos",
+            description=(
+                "Realiza busca semântica usando embeddings para retornar artigos "
+                "ordenados por relevância no contexto da consulta."
             )
         )
 
@@ -97,6 +111,25 @@ class ArtigoController:
         except Exception as e:
             logger.exception("Erro ao buscar artigo pelo termo: {termo}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    def busca_semantica_artigos(
+        self,
+        termo: str = Query(..., min_length=1),
+        k: int = Query(10, ge=1, le=50)
+    ):        
+        try:
+            resultados = self.semantic.semantic_search(termo, k, tipo="artigo")
+            
+            return {
+                "query": termo,
+                "resultados": [
+                    {"documento": doc, "score": score} for doc, score in resultados
+                ]
+            }
+        
+        except Exception as e:
+            logger.error(f"Erro na busca semântica de artigos: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     def adicionar(self, artigo: Artigo):
         try:

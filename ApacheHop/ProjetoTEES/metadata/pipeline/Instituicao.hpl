@@ -56,23 +56,8 @@
       <enabled>Y</enabled>
     </hop>
     <hop>
-      <from>Filter rows 2</from>
-      <to>Dummy (instituição inválida)</to>
-      <enabled>Y</enabled>
-    </hop>
-    <hop>
       <from>Get data from XML</from>
       <to>Select values 2</to>
-      <enabled>Y</enabled>
-    </hop>
-    <hop>
-      <from>Select values 2</from>
-      <to>Filter rows 2</to>
-      <enabled>Y</enabled>
-    </hop>
-    <hop>
-      <from>Filter rows 2</from>
-      <to>Sort rows Instituicao</to>
       <enabled>Y</enabled>
     </hop>
     <hop>
@@ -80,24 +65,17 @@
       <to>Sort rows Instituicao Cadastrada</to>
       <enabled>Y</enabled>
     </hop>
+    <hop>
+      <from>Select values 2</from>
+      <to>If Null</to>
+      <enabled>Y</enabled>
+    </hop>
+    <hop>
+      <from>If Null</from>
+      <to>Sort rows Instituicao</to>
+      <enabled>Y</enabled>
+    </hop>
   </order>
-  <transform>
-    <name>Dummy (instituição inválida)</name>
-    <type>Dummy</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning>
-      <method>none</method>
-      <schema_name/>
-    </partitioning>
-    <attributes/>
-    <GUI>
-      <xloc>640</xloc>
-      <yloc>464</yloc>
-    </GUI>
-  </transform>
   <transform>
     <name>Dummy (instituição já cadastrada)</name>
     <type>Dummy</type>
@@ -142,35 +120,6 @@
     <GUI>
       <xloc>1136</xloc>
       <yloc>256</yloc>
-    </GUI>
-  </transform>
-  <transform>
-    <name>Filter rows 2</name>
-    <type>FilterRows</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning>
-      <method>none</method>
-      <schema_name/>
-    </partitioning>
-    <compare>
-      <condition>
-        <conditions>
-</conditions>
-        <function>IS NOT NULL</function>
-        <leftvalue>nome_instituicao</leftvalue>
-        <negated>N</negated>
-        <operator>-</operator>
-      </condition>
-    </compare>
-    <send_false_to>Dummy (instituição inválida)</send_false_to>
-    <send_true_to>Sort rows Instituicao</send_true_to>
-    <attributes/>
-    <GUI>
-      <xloc>640</xloc>
-      <yloc>336</yloc>
     </GUI>
   </transform>
   <transform>
@@ -271,6 +220,38 @@
     <attributes/>
     <GUI>
       <xloc>208</xloc>
+      <yloc>336</yloc>
+    </GUI>
+  </transform>
+  <transform>
+    <name>If Null</name>
+    <type>IfNull</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <fields>
+      <field>
+        <mask/>
+        <name>nome_instituicao</name>
+        <set_empty_string>N</set_empty_string>
+        <value>Não Identificada</value>
+      </field>
+    </fields>
+    <replaceAllByValue/>
+    <replaceAllMask/>
+    <selectFields>Y</selectFields>
+    <selectValuesType>N</selectValuesType>
+    <setEmptyStringAll>N</setEmptyStringAll>
+    <valuetypes>
+</valuetypes>
+    <attributes/>
+    <GUI>
+      <xloc>656</xloc>
       <yloc>336</yloc>
     </GUI>
   </transform>

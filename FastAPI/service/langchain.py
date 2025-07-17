@@ -63,7 +63,7 @@ class LangchainService:
 
         # Usar gpt-3.5-turbo que tem limite maior de tokens
         self.llm = OpenAI(api_key=api_key, temperature=0.3, model_name="gpt-3.5-turbo-instruct", max_tokens=500)
-        self.splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
+        self.splitter = CharacterTextSplitter(chunk_size=3000, chunk_overlap=50)
 
 
     def summarize(self, documentos: List[Dict], tipo: str) -> str:
@@ -78,7 +78,7 @@ class LangchainService:
             if tipo == "pesquisador":
                 texts.append(f"{doc['nome']}: {doc.get('resumo','')}")
             elif tipo == "artigo":
-                texts.append(f"{doc['nome']}: {doc.get('resumo','')}")
+                texts.append(f"{doc['title']}: {doc.get('abstract','')}")
         
         big_text = "\n\n".join(texts)
         chunks = self.splitter.split_text(big_text)

@@ -6,5 +6,6 @@ venv*/
 .env.*
 virtual_environment/
 imagens/*
+semantic_indexes/*
 !imagens/.gitkeep
 __pycache__/

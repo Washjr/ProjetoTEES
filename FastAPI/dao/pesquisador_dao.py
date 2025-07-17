@@ -5,7 +5,7 @@ from psycopg2 import IntegrityError
 
 from banco.conexao_db import Conexao
 from model.pesquisador import Pesquisador
-from foto_lattes import buscar_codigo_lattes, baixar_foto_pesquisador
+from service.foto_lattes import buscar_codigo_lattes, baixar_foto_pesquisador
 from config import configuracoes
 
 logger = logging.getLogger(__name__)
@@ -21,22 +21,6 @@ class PesquisadorDAO:
     def __del__(self):
         Conexao.devolver_conexao(self.conexao)
 
-    def _gerar_url_foto(self, id_lattes: str) -> str:
-        """
-        Gera a URL completa da foto do pesquisador.
-        Verifica se o arquivo existe fisicamente, caso contrário retorna URL de imagem padrão.
-        """
-        if not id_lattes:
-            logger.warning("ID Lattes não fornecido. Usando imagem padrão.")
-            return f"{configuracoes.BASE_URL}/imagens/pesquisadores/default.jpg"
-        
-        caminho_foto = Path(__file__).parent.parent / "imagens" / "pesquisadores" / f"{id_lattes}.jpg"
-        
-        if caminho_foto.exists():
-            return f"{configuracoes.BASE_URL}/imagens/pesquisadores/{id_lattes}.jpg"
-        else:
-            logger.warning(f"Foto não encontrada para id_lattes: {id_lattes}. Usando imagem padrão.")
-            return f"{configuracoes.BASE_URL}/imagens/pesquisadores/default.jpg"
 
     def listar_pesquisadores(self) -> List[Dict]:
         sql = (
@@ -99,6 +83,7 @@ class PesquisadorDAO:
             logger.exception(f"Erro ao buscar pesquisador pelo termo: '{termo}'")
             raise RuntimeError(f"Erro ao buscar pesquisador por termo: {e}")
 
+
     def obter_pesquisador_por_id(self, id_pesquisador: str) -> Pesquisador:
         """
         Obtém um pesquisador específico pelo ID.
@@ -134,6 +119,7 @@ class PesquisadorDAO:
         except Exception as e:
             logger.exception(f"Erro ao obter pesquisador por ID: {id_pesquisador}")
             raise RuntimeError(f"Erro ao obter pesquisador por ID: {e}")
+
 
     def salvar_pesquisador(self, pesquisador:Pesquisador) -> Dict:
         sql = (
@@ -274,6 +260,7 @@ class PesquisadorDAO:
             logger.exception(f"Erro ao buscar artigos do pesquisador {id_pesquisador}")
             raise RuntimeError(f"Erro ao buscar artigos do pesquisador: {e}")
 
+
     def obter_perfil_pesquisador(self, id_pesquisador: str) -> Dict:
         """
         Obtém dados completos do perfil do pesquisador (dados básicos + artigos).
@@ -318,6 +305,7 @@ class PesquisadorDAO:
         except Exception as e:
             logger.exception(f"Erro ao obter perfil do pesquisador {id_pesquisador}")
             raise RuntimeError(f"Erro ao obter perfil do pesquisador: {e}")
+
 
     def sincronizar_fotos(self) -> None:
         """
@@ -370,3 +358,21 @@ class PesquisadorDAO:
         except Exception:
             logger.exception("Erro inesperado na sincronização de fotos")
             raise RuntimeError("Erro ao sincronizar fotos de pesquisadores")
+    
+
+    def _gerar_url_foto(self, id_lattes: str) -> str:
+        """
+        Gera a URL completa da foto do pesquisador.
+        Verifica se o arquivo existe fisicamente, caso contrário retorna URL de imagem padrão.
+        """
+        if not id_lattes:
+            logger.warning("ID Lattes não fornecido. Usando imagem padrão.")
+            return f"{configuracoes.BASE_URL}/imagens/pesquisadores/default.jpg"
+        
+        caminho_foto = Path(__file__).parent.parent / "imagens" / "pesquisadores" / f"{id_lattes}.jpg"
+        
+        if caminho_foto.exists():
+            return f"{configuracoes.BASE_URL}/imagens/pesquisadores/{id_lattes}.jpg"
+        else:
+            logger.warning(f"Foto não encontrada para id_lattes: {id_lattes}. Usando imagem padrão.")
+            return f"{configuracoes.BASE_URL}/imagens/pesquisadores/default.jpg"

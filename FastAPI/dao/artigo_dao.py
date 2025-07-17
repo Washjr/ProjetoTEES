@@ -4,7 +4,7 @@ from psycopg2 import IntegrityError
 
 from banco.conexao_db import Conexao
 from model.artigo import Artigo
-from openalex import buscar_resumo_openalex
+from service.openalex import buscar_resumo_openalex
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,15 @@ class ArtigoDAO:
                 (id_artigo, title, journal, year, abstract, doi, qualis, 
                  author_id, author_name) = linha
                 
-                if id_artigo not in artigos_dict:
-                    artigos_dict[id_artigo] = {
+                normalized_title = title.strip().lower()
+                normalized_journal = journal.strip().lower() if journal else ""
+                normalized_year = str(year).strip() if year else ""
+                normalized_doi = (doi.strip().lower() if doi else "")
+
+                key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
+
+                if key  not in artigos_dict:
+                    artigos_dict[key] = {
                         "id": str(id_artigo),
                         "title": title,
                         "journal": journal,
@@ -63,10 +70,10 @@ class ArtigoDAO:
                 # Adicionar autor se não existir
                 author_exists = any(
                     author["id"] == str(author_id) 
-                    for author in artigos_dict[id_artigo]["authors"]
+                    for author in artigos_dict[key]["authors"]
                 )
                 if not author_exists:
-                    artigos_dict[id_artigo]["authors"].append({
+                    artigos_dict[key ]["authors"].append({
                         "id": str(author_id),
                         "name": author_name
                     })
@@ -110,8 +117,15 @@ class ArtigoDAO:
                 (id_artigo, title, journal, year, abstract, doi, qualis, 
                  author_id, author_name) = linha
                 
-                if id_artigo not in artigos_dict:
-                    artigos_dict[id_artigo] = {
+                normalized_title = title.strip().lower()
+                normalized_journal = journal.strip().lower() if journal else ""
+                normalized_year = str(year).strip() if year else ""
+                normalized_doi = (doi.strip().lower() if doi else "")
+
+                key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
+
+                if key  not in artigos_dict:
+                    artigos_dict[key] = {
                         "id": str(id_artigo),
                         "title": title,
                         "journal": journal,
@@ -125,10 +139,10 @@ class ArtigoDAO:
                 # Adicionar autor se não existir
                 author_exists = any(
                     author["id"] == str(author_id) 
-                    for author in artigos_dict[id_artigo]["authors"]
+                    for author in artigos_dict[key]["authors"]
                 )
                 if not author_exists:
-                    artigos_dict[id_artigo]["authors"].append({
+                    artigos_dict[key ]["authors"].append({
                         "id": str(author_id),
                         "name": author_name
                     })

@@ -71,11 +71,6 @@
       <enabled>Y</enabled>
     </hop>
     <hop>
-      <from>Select Values</from>
-      <to>Sort rows Pesquisador</to>
-      <enabled>Y</enabled>
-    </hop>
-    <hop>
       <from>Filter rows 2</from>
       <to>Strings cut (orcid)</to>
       <enabled>Y</enabled>
@@ -110,6 +105,16 @@
       <to>Sort rows Pesquisador 2</to>
       <enabled>Y</enabled>
     </hop>
+    <hop>
+      <from>Select Values</from>
+      <to>If Null</to>
+      <enabled>Y</enabled>
+    </hop>
+    <hop>
+      <from>If Null</from>
+      <to>Sort rows Pesquisador</to>
+      <enabled>Y</enabled>
+    </hop>
   </order>
   <transform>
     <name>Dummy (pesquisador já cadastrado)</name>
@@ -124,7 +129,7 @@
     </partitioning>
     <attributes/>
     <GUI>
-      <xloc>992</xloc>
+      <xloc>1136</xloc>
       <yloc>112</yloc>
     </GUI>
   </transform>
@@ -182,7 +187,7 @@
     <send_true_to>Strings cut (orcid)</send_true_to>
     <attributes/>
     <GUI>
-      <xloc>992</xloc>
+      <xloc>1136</xloc>
       <yloc>240</yloc>
     </GUI>
   </transform>
@@ -487,7 +492,7 @@ if(POSDOUTORADO == "CONCLUIDO") {
     </fields>
     <attributes/>
     <GUI>
-      <xloc>1168</xloc>
+      <xloc>1312</xloc>
       <yloc>400</yloc>
     </GUI>
   </transform>
@@ -513,7 +518,7 @@ if(POSDOUTORADO == "CONCLUIDO") {
     <transform2>Sort rows Pesquisador Cadastrado</transform2>
     <attributes/>
     <GUI>
-      <xloc>832</xloc>
+      <xloc>976</xloc>
       <yloc>240</yloc>
     </GUI>
   </transform>
@@ -539,7 +544,7 @@ if(POSDOUTORADO == "CONCLUIDO") {
     <transform2>Sort rows Instituicao</transform2>
     <attributes/>
     <GUI>
-      <xloc>1456</xloc>
+      <xloc>1600</xloc>
       <yloc>560</yloc>
     </GUI>
   </transform>
@@ -557,47 +562,36 @@ if(POSDOUTORADO == "CONCLUIDO") {
     <fields>
       <field>
         <name>NOME-COMPLETO</name>
-        <rename/>
       </field>
       <field>
         <name>IDLATTES</name>
-        <rename/>
       </field>
       <field>
         <name>ORCID</name>
-        <rename/>
       </field>
       <field>
         <name>RESUMO</name>
-        <rename/>
       </field>
       <field>
         <name>NOME-EM-CITACOES-BIBLIOGRAFICAS</name>
-        <rename/>
       </field>
       <field>
         <name>GRADUACAO</name>
-        <rename/>
       </field>
       <field>
         <name>ESPECIALIZACAO</name>
-        <rename/>
       </field>
       <field>
         <name>MESTRADO</name>
-        <rename/>
       </field>
       <field>
         <name>DOUTORADO</name>
-        <rename/>
       </field>
       <field>
         <name>POSDOUTORADO</name>
-        <rename/>
       </field>
       <field>
         <name>NOME-INSTITUICAO</name>
-        <rename/>
       </field>
       <select_unspecified>N</select_unspecified>
     </fields>
@@ -635,7 +629,7 @@ if(POSDOUTORADO == "CONCLUIDO") {
     <unique_rows>N</unique_rows>
     <attributes/>
     <GUI>
-      <xloc>1344</xloc>
+      <xloc>1488</xloc>
       <yloc>720</yloc>
     </GUI>
   </transform>
@@ -667,7 +661,7 @@ if(POSDOUTORADO == "CONCLUIDO") {
     <unique_rows>N</unique_rows>
     <attributes/>
     <GUI>
-      <xloc>720</xloc>
+      <xloc>864</xloc>
       <yloc>384</yloc>
     </GUI>
   </transform>
@@ -683,7 +677,6 @@ if(POSDOUTORADO == "CONCLUIDO") {
       <schema_name/>
     </partitioning>
     <compress>N</compress>
-    <compress_variables/>
     <directory>${java.io.tmpdir}</directory>
     <fields>
       <field>
@@ -695,13 +688,12 @@ if(POSDOUTORADO == "CONCLUIDO") {
         <presorted>N</presorted>
       </field>
     </fields>
-    <free_memory/>
     <sort_prefix>out</sort_prefix>
     <sort_size>100000</sort_size>
     <unique_rows>N</unique_rows>
     <attributes/>
     <GUI>
-      <xloc>1344</xloc>
+      <xloc>1488</xloc>
       <yloc>400</yloc>
     </GUI>
   </transform>
@@ -733,7 +725,7 @@ if(POSDOUTORADO == "CONCLUIDO") {
     <unique_rows>N</unique_rows>
     <attributes/>
     <GUI>
-      <xloc>720</xloc>
+      <xloc>864</xloc>
       <yloc>112</yloc>
     </GUI>
   </transform>
@@ -782,7 +774,7 @@ if(POSDOUTORADO == "CONCLUIDO") {
     </fields>
     <attributes/>
     <GUI>
-      <xloc>992</xloc>
+      <xloc>1136</xloc>
       <yloc>400</yloc>
     </GUI>
   </transform>
@@ -879,22 +871,51 @@ FROM "public".pesquisador</sql>
     <only_when_have_rows>N</only_when_have_rows>
     <partitioning_daily>N</partitioning_daily>
     <partitioning_enabled>N</partitioning_enabled>
-    <partitioning_field/>
     <partitioning_monthly>Y</partitioning_monthly>
-    <return_field/>
     <return_keys>N</return_keys>
     <schema>"public"</schema>
     <specify_fields>Y</specify_fields>
     <table>pesquisador</table>
-    <tablename_field/>
     <tablename_in_field>N</tablename_in_field>
     <tablename_in_table>Y</tablename_in_table>
     <truncate>N</truncate>
     <use_batch>Y</use_batch>
     <attributes/>
     <GUI>
-      <xloc>1600</xloc>
+      <xloc>1744</xloc>
       <yloc>560</yloc>
+    </GUI>
+  </transform>
+  <transform>
+    <name>If Null</name>
+    <type>IfNull</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <fields>
+      <field>
+        <mask/>
+        <name>NOME-INSTITUICAO</name>
+        <set_empty_string>N</set_empty_string>
+        <value>Não Identificada</value>
+      </field>
+    </fields>
+    <replaceAllByValue/>
+    <replaceAllMask/>
+    <selectFields>Y</selectFields>
+    <selectValuesType>N</selectValuesType>
+    <setEmptyStringAll>N</setEmptyStringAll>
+    <valuetypes>
+</valuetypes>
+    <attributes/>
+    <GUI>
+      <xloc>704</xloc>
+      <yloc>384</yloc>
     </GUI>
   </transform>
   <transform_error_handling>

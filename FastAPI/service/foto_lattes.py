@@ -46,34 +46,50 @@ def baixar_foto_pesquisador(codigo_k: str, id_lattes: str) -> bool:
     salva em imagens/pesquisadores/{id_lattes}.jpg.
 
     Retorna True se conseguiu salvar (status 200), False caso contrário.
+    Em caso de falha, tenta novamente uma vez antes de desistir.
     """
+    
     url = f"http://servicosweb.cnpq.br/wspessoa/servletrecuperafoto?tipo=1&id={codigo_k}"
+    max_tentativas = 2
 
-    try:
-        resposta = requests.get(url, timeout=10)
-    except Exception as e:
-        logger.error(f"Erro ao baixar foto K={codigo_k}: {e}")
-        return False
+    for tentativa in range(1, max_tentativas + 1):
+        try:
+            resposta = requests.get(url, timeout=10)
+        except Exception as e:           
+            logger.error(f"Erro na tentativa {tentativa} ao baixar foto K={codigo_k}: {e}")
+            if tentativa == max_tentativas:
+                return False
+            continue
 
-    if resposta.status_code != HTTPStatus.OK:
-        logger.warning(f"Falha ao baixar foto (K={codigo_k}): status {resposta.status_code}")
-        return False
+        if resposta.status_code != HTTPStatus.OK:
+            logger.warning(
+                f"Falha na tentativa {tentativa} ao baixar foto (K={codigo_k}): "
+                f"status {resposta.status_code}"
+            )
+            if tentativa == max_tentativas:
+                return False
+            continue
 
-    destino = Path(__file__).parent / "imagens" / "pesquisadores"
-    destino.mkdir(parents=True, exist_ok=True)
-    arquivo = destino / f"{id_lattes}.jpg"
+        destino = Path(__file__).parents[1] / "imagens" / "pesquisadores"
+        destino.mkdir(parents=True, exist_ok=True)
+        arquivo = destino / f"{id_lattes}.jpg"
 
-    try:
-        arquivo.write_bytes(resposta.content)
-        logger.info(f"Imagem salva em {arquivo}")
-        return True
-    except Exception as e:
-        logger.error(f"Erro ao salvar foto para {id_lattes}: {e}")
-        return False
+        try:
+            arquivo.write_bytes(resposta.content)
+            logger.info(f"Imagem salva em {arquivo}")
+            return True
+        except Exception as e:
+            logger.error(
+                f"Erro ao salvar foto na tentativa {tentativa} para {id_lattes}: {e}"
+            )
+            if tentativa == max_tentativas:
+                return False
+        
+    return False
 
 
 if __name__ == "__main__":
-    teste_lattes = "6716225567627323"
+    teste_lattes = "7401907691814937"
     logger.info(f"Iniciando busca de código K para Lattes {teste_lattes}")
     codigo = buscar_codigo_lattes(teste_lattes)
 

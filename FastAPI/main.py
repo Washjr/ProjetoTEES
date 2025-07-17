@@ -18,6 +18,7 @@ from controller.software_controller import software_router
 from dao.artigo_dao import ArtigoDAO
 from dao.pesquisador_dao import PesquisadorDAO
 from banco.conexao_db import Conexao
+from service.semantic_search import SemanticSearchService
 
 # Configuração de logging
 logging.basicConfig(
@@ -29,8 +30,11 @@ logging.basicConfig(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Conexao.inicializar_pool()
+
     ArtigoDAO().sincronizar_resumos()
     PesquisadorDAO().sincronizar_fotos()
+    SemanticSearchService().index_all()
+
     yield
     Conexao.fechar_todas_conexoes()
 
