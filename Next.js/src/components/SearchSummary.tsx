@@ -8,20 +8,20 @@ interface SearchSummaryProps {
   topKeyword: string;
   searchTerm: string;
   aiSummary?: string;
+  tags?: string[];
 }
 
-const SearchSummary = ({ totalResults, topKeyword, searchTerm, aiSummary }: SearchSummaryProps) => {
-  // Tags simuladas baseadas na pesquisa
-  const mockTags = [
+const SearchSummary = ({ totalResults, topKeyword, searchTerm, aiSummary, tags = [] }: SearchSummaryProps) => {
+  // Tags fallback caso não venham do backend
+  const fallbackTags = [
+    'systems',
     'machine learning',
-    'inteligência artificial',
+    'artificial intelligence',
     'deep learning',
-    'algoritmos',
-    'redes neurais',
-    'diagnóstico médico',
-    'imagens médicas',
-    'processamento'
   ];
+
+  // Usar as tags do backend se disponíveis, senão usar fallback
+  const displayTags = tags.length > 0 ? tags : fallbackTags;
 
   // Usar o resumo da IA se disponível, senão usar o resumo padrão
   const summaryText = aiSummary || `A busca por "${searchTerm}" retornou ${totalResults} documentos científicos relevantes. Os resultados abrangem principalmente pesquisas relacionadas a ${topKeyword} e suas aplicações em diferentes áreas. A análise dos documentos mostra uma concentração de estudos em métodos computacionais avançados e suas implementações práticas na área da saúde e medicina.`;
@@ -51,7 +51,7 @@ const SearchSummary = ({ totalResults, topKeyword, searchTerm, aiSummary }: Sear
           <div className="lg:col-span-1">
             <h4 className="text-sm font-medium text-foreground mb-3">Tags mais relevantes</h4>
             <div className="flex flex-col gap-2">
-              {mockTags.slice(0, 6).map((tag, index) => (
+              {displayTags.slice(0, 6).map((tag, index) => (
                 <Badge 
                   key={index} 
                   variant="outline" 

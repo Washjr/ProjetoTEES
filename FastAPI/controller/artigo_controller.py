@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Query, status
-from typing import List
 import logging
 
 from dao.artigo_dao import ArtigoDAO
@@ -41,7 +40,7 @@ class ArtigoController:
             summary="Buscar artigos por termo",
             description=(
                 "Retorna os artigos cujo nome ou resumo contém o termo passado. "
-                "Pode também incluir um resumo geral dos resultados se `incluir_resumo=true`."
+                "Pode também incluir um resumo geral dos resultados e tags separadas se `incluir_resumo=true`."
             )
         )
 
@@ -104,7 +103,12 @@ class ArtigoController:
 
             if incluir_resumo and resultados:
                 resumo = self.summarizer.summarize(resultados, tipo="artigo")
-                return {"resultados": resultados, "resumo_ia": resumo}
+                tags = self.summarizer.gerar_tags_artigo(resultados)
+                return {
+                    "resultados": resultados, 
+                    "resumo_ia": resumo,
+                    "tags": tags
+                }
 
             return resultados
         

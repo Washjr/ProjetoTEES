@@ -12,4 +12,5 @@ export interface ArticleData {
 export interface ResultArticleData {
   resultados: ArticleData[];
   resumo_ia: string;
+  tags: string[];
 }

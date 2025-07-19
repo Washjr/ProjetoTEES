@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
-from typing import List
 from pathlib import Path
 import logging
 

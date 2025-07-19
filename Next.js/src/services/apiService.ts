@@ -27,7 +27,11 @@ export class ApiService {
       // Verificar se a resposta já está no formato correto
       if (data.resultados && typeof data.resumo_ia !== 'undefined') {
         console.log('Resposta já no formato correto:', data);
-        return data;
+        // Garantir que tags existe, mesmo que vazio
+        return {
+          ...data,
+          tags: data.tags || []
+        };
       }
       
       // Se não estiver no formato correto, transformar
@@ -36,7 +40,8 @@ export class ApiService {
       // Transformar o resultado para o formato esperado pelo frontend
       const result: ResultArticleData = {
         resultados: articles,
-        resumo_ia: incluirResumo ? (data.resumo_ia || "Resumo gerado pela IA baseado nos resultados da busca.") : ""
+        resumo_ia: incluirResumo ? (data.resumo_ia || "Resumo gerado pela IA baseado nos resultados da busca.") : "",
+        tags: data.tags || []
       };
       
       console.log('Resultado transformado:', result);

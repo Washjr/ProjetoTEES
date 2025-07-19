@@ -17,8 +17,7 @@ class LangchainService:
             "{content}\n\n"
             "Com base nesses dados, gere uma resposta estruturada com os seguintes elementos:\n"
             "1) Um **resumo geral** dos principais temas e áreas de atuação presentes entre os pesquisadores.\n"
-            "2) Destaque as **tendências ou linhas de pesquisa mais frequentes**.\n"
-            "3) Liste até **5 palavras-chave curtas** que melhor representem os tópicos recorrentes.\n\n"
+            "2) Destaque as **tendências ou linhas de pesquisa mais frequentes**.\n\n"
             "A resposta deve ser clara, objetiva e útil para o usuário que realizou a busca. "
             "Ela será exibida junto aos resultados encontrados."
         ),
@@ -28,8 +27,7 @@ class LangchainService:
             "{content}\n\n"
             "Com base nesses dados, gere uma resposta estruturada com os seguintes elementos:\n"
             "1) Um **resumo geral** dos principais temas abordados nos artigos.\n"
-            "2) Destaque as **tendências ou tópicos de pesquisa mais frequentes**.\n"
-            "3) Liste até **5 palavras-chave curtas** que melhor representem o conteúdo dos artigos.\n\n"
+            "2) Destaque as **tendências ou tópicos de pesquisa mais frequentes**.\n\n"
             "A resposta deve ser clara, objetiva e útil para o usuário que realizou a busca. "
             "Ela será exibida junto aos resultados encontrados."
         ),
@@ -50,6 +48,14 @@ class LangchainService:
             "Gere exatamente 8 tags curtas (máximo 3 palavras cada) que representem:\n"
             "- Áreas de conhecimento\n"
             "- Temas de pesquisa\n"
+            "- Metodologias\n\n"
+            "Retorne apenas as tags separadas por vírgula."
+        ),
+        "tags_artigo": (
+            "Analise os seguintes artigos científicos:\n{content}\n\n"
+            "Gere exatamente 5 tags curtas (máximo 3 palavras cada) que representem:\n"
+            "- Principais temas de pesquisa\n"
+            "- Áreas de conhecimento\n"
             "- Metodologias\n\n"
             "Retorne apenas as tags separadas por vírgula."
         ),
@@ -177,3 +183,46 @@ class LangchainService:
         except Exception:
             logger.exception("Erro ao gerar tags do pesquisador")
             return ["Pesquisa Acadêmica", "Ciência", "Produção Científica"]
+
+    def gerar_tags_artigo(self, documentos: List[Dict]) -> List[str]:
+        """
+        Gera tags (palavras-chave) baseadas nos artigos fornecidos.
+        """
+        try:
+            if not documentos:
+                return ["Pesquisa Científica", "Artigo Acadêmico"]
+
+            template = self.TEMPLATES["tags_artigo"]
+            prompt = PromptTemplate(input_variables=["content"], template=template)
+
+            # Formatar artigos de forma concisa
+            texts = []
+            # Limitar a 8 artigos para evitar excesso de tokens
+            documentos_limitados = documentos[:8] if len(documentos) > 8 else documentos
+            
+            for doc in documentos_limitados:
+                titulo = doc.get('title', 'Sem título')[:80]  # Limitar título
+                abstract = doc.get('abstract', '')[:200]  # Limitar resumo
+                
+                if abstract:
+                    texts.append(f"{titulo}: {abstract}")
+                else:
+                    texts.append(titulo)
+
+            content = "\n\n".join(texts)
+
+            logger.info("Gerando tags para %d artigos", len(documentos_limitados))
+
+            runnable: Runnable = prompt | self.llm
+            resultado = runnable.invoke({"content": content})
+
+            # Processar resultado para extrair as tags
+            tags = [tag.strip() for tag in resultado.split(",")]
+            # Limitar a 5 tags e remover vazias
+            tags = [tag for tag in tags if tag][:5]
+            
+            return tags if tags else ["Pesquisa Científica", "Artigo Acadêmico"]
+
+        except Exception:
+            logger.exception("Erro ao gerar tags dos artigos")
+            return ["Pesquisa Científica", "Artigo Acadêmico", "Ciência"]

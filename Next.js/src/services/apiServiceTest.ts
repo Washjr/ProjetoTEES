@@ -257,9 +257,20 @@ export class ApiServiceTest {
         ? `Esta busca por "${searchTerm}" retornou ${filteredArticles.length} artigo(s) relevante(s). Os resultados abrangem diferentes áreas de pesquisa e demonstram a diversidade de trabalhos relacionados ao termo buscado.`
         : "";
       
+      // Tags mockadas baseadas na busca
+      const mockTagsResponse = [
+        "Context-aware systems",
+        "Mobile devices", 
+        "Food identification",
+        "Poll-based",
+        "Turismo acessível",
+        "Aplicativo móvel"
+      ];
+      
       const result: ResultArticleData = {
         resultados: filteredArticles,
-        resumo_ia: resumoIA
+        resumo_ia: resumoIA,
+        tags: mockTagsResponse
       };
       
       return result;

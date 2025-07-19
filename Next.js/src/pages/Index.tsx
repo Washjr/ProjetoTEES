@@ -20,6 +20,7 @@ const Index = () => {
   const [results, setResults] = useState<ArticleData[]>([]);
   const [researchers, setResearchers] = useState<ResearcherData[]>([]);
   const [aiSummary, setAiSummary] = useState<string>("");
+  const [tags, setTags] = useState<string[]>([]);
   const [selectedArticle, setSelectedArticle] =
     useState<ArticleData | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
@@ -40,6 +41,7 @@ const Index = () => {
         const searchResults = await ApiService.searchArticles(query);
         setResults(searchResults.resultados);
         setAiSummary(searchResults.resumo_ia);
+        setTags(searchResults.tags || []);
         setResearchers([]);
         setTotalPages(Math.ceil(searchResults.resultados.length / 5));
       } else {
@@ -47,6 +49,7 @@ const Index = () => {
         setResearchers(searchResearchers);
         setResults([]);
         setAiSummary("");
+        setTags([]);
         setTotalPages(Math.ceil(searchResearchers.length / 8));
       }
     } catch (error) {
@@ -55,6 +58,7 @@ const Index = () => {
       setResults([]);
       setResearchers([]);
       setAiSummary("");
+      setTags([]);
       setTotalPages(1);
     } finally {
       setIsLoading(false);
@@ -82,6 +86,7 @@ const Index = () => {
     setResults([]);
     setResearchers([]);
     setAiSummary("");
+    setTags([]);
     setCurrentPage(1);
     setTotalPages(1);
     setIsLoading(false);
@@ -209,6 +214,7 @@ const Index = () => {
                     topKeyword={getTopKeyword()}
                     searchTerm={searchTerm}
                     aiSummary={aiSummary}
+                    tags={tags}
                   />
                 )}
 
