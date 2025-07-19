@@ -21,14 +21,25 @@ export class ApiService {
         throw new Error(`Erro ao buscar artigos: ${response.status} ${response.statusText}`);
       }
       
-      const articles: ArticleData[] = await response.json();
+      const data = await response.json();
+      console.log('Dados recebidos do backend:', data);
+      
+      // Verificar se a resposta já está no formato correto
+      if (data.resultados && typeof data.resumo_ia !== 'undefined') {
+        console.log('Resposta já no formato correto:', data);
+        return data;
+      }
+      
+      // Se não estiver no formato correto, transformar
+      const articles: ArticleData[] = Array.isArray(data) ? data : data.resultados || [];
       
       // Transformar o resultado para o formato esperado pelo frontend
       const result: ResultArticleData = {
         resultados: articles,
-        resumo_ia: incluirResumo ? "Resumo gerado pela IA baseado nos resultados da busca." : ""
+        resumo_ia: incluirResumo ? (data.resumo_ia || "Resumo gerado pela IA baseado nos resultados da busca.") : ""
       };
       
+      console.log('Resultado transformado:', result);
       return result;
     } catch (error) {
       console.error('Erro ao buscar artigos:', error);
