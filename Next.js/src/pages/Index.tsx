@@ -3,13 +3,15 @@ import { useNavigate } from "react-router-dom";
 import SearchInterface, { SearchMode } from "@/components/SearchInterface";
 import SearchSummary from "@/components/SearchSummary";
 import SearchResult from "@/components/SearchResult";
+import SemanticSearchResultComponent from "@/components/SemanticSearchResult";
+import SearchSectionDivider from "@/components/SearchSectionDivider";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import NoResults from "@/components/NoResults";
 import ResearcherCard from "@/components/ResearcherCard";
 import ArticleOverlay from "@/components/ArticleOverlay";
 import SearchPagination from "@/components/SearchPagination";
 import { ApiService } from "@/services/apiService";
-import { ArticleData, ResearcherData, ResultArticleData } from "@/types";
+import { ArticleData, ResearcherData, CombinedSearchData, SemanticSearchResult } from "@/types";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -18,6 +20,7 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("articles");
   const [results, setResults] = useState<ArticleData[]>([]);
+  const [semanticResults, setSemanticResults] = useState<SemanticSearchResult[]>([]);
   const [researchers, setResearchers] = useState<ResearcherData[]>([]);
   const [aiSummary, setAiSummary] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);
@@ -38,16 +41,27 @@ const Index = () => {
 
     try {
       if (mode === "articles") {
-        const searchResults = await ApiService.searchArticles(query);
-        setResults(searchResults.resultados);
-        setAiSummary(searchResults.resumo_ia);
-        setTags(searchResults.tags || []);
+        const combinedResults = await ApiService.searchArticlesCombined(query);
+        
+        // Definir resultados da busca por termo
+        setResults(combinedResults.termo_busca.resultados);
+        setAiSummary(combinedResults.termo_busca.resumo_ia);
+        setTags(combinedResults.termo_busca.tags || []);
+        
+        // Definir resultados da busca semântica
+        setSemanticResults(combinedResults.busca_semantica.resultados);
+        
+        // Limpar dados de pesquisadores
         setResearchers([]);
-        setTotalPages(Math.ceil(searchResults.resultados.length / 5));
+        
+        // Calcular paginação baseada nos resultados totais
+        const totalResults = combinedResults.termo_busca.resultados.length + combinedResults.busca_semantica.resultados.length;
+        setTotalPages(Math.ceil(totalResults / 10));
       } else {
         const searchResearchers = await ApiService.searchResearchers(query);
         setResearchers(searchResearchers);
         setResults([]);
+        setSemanticResults([]);
         setAiSummary("");
         setTags([]);
         setTotalPages(Math.ceil(searchResearchers.length / 8));
@@ -56,6 +70,7 @@ const Index = () => {
       console.error("Erro na busca:", error);
       // Em caso de erro, limpar os resultados
       setResults([]);
+      setSemanticResults([]);
       setResearchers([]);
       setAiSummary("");
       setTags([]);
@@ -67,6 +82,11 @@ const Index = () => {
 
   const handleArticleClick = (article: ArticleData) => {
     setSelectedArticle(article);
+    setIsOverlayOpen(true);
+  };
+
+  const handleSemanticResultClick = (semanticResult: SemanticSearchResult) => {
+    setSelectedArticle(semanticResult.documento);
     setIsOverlayOpen(true);
   };
 
@@ -84,6 +104,7 @@ const Index = () => {
     setHasSearched(false);
     setSearchTerm("");
     setResults([]);
+    setSemanticResults([]);
     setResearchers([]);
     setAiSummary("");
     setTags([]);
@@ -97,7 +118,7 @@ const Index = () => {
   };
 
   const getTotalResults = () =>
-    searchMode === "articles" ? results.length : researchers.length;
+    searchMode === "articles" ? results.length + semanticResults.length : researchers.length;
   const getTopKeyword = () => {
     if (searchTerm.toLowerCase().includes("machine")) return "algoritmos";
     if (searchTerm.toLowerCase().includes("climate")) return "temperatura";
@@ -220,20 +241,53 @@ const Index = () => {
 
                 {/* Resultados */}
                 {searchMode === "articles" ? (
-                  results.length > 0 ? (
-                    <div className="space-y-4">
-                      {results.map((result) => (
-                        <SearchResult
-                          key={result.id}
-                          title={result.title}
-                          journal={result.journal}
-                          year={result.year}
-                          qualis={result.qualis}
-                          abstract={result.abstract}
-                          searchTerm={searchTerm}
-                          onClick={() => handleArticleClick(result)}
-                        />
-                      ))}
+                  (results.length > 0 || semanticResults.length > 0) ? (
+                    <div className="space-y-6">
+                      {/* Resultados por termo */}
+                      {results.length > 0 && (
+                        <>
+                          <SearchSectionDivider 
+                            title="Busca por Termo" 
+                            count={results.length}
+                            icon="🔤"
+                          />
+                          <div className="space-y-4">
+                            {results.map((result) => (
+                              <SearchResult
+                                key={result.id}
+                                title={result.title}
+                                journal={result.journal}
+                                year={result.year}
+                                qualis={result.qualis}
+                                abstract={result.abstract}
+                                searchTerm={searchTerm}
+                                onClick={() => handleArticleClick(result)}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Resultados semânticos */}
+                      {semanticResults.length > 0 && (
+                        <>
+                          <SearchSectionDivider 
+                            title="Busca Semântica" 
+                            count={semanticResults.length}
+                            icon="🧠"
+                          />
+                          <div className="space-y-4">
+                            {semanticResults.map((result) => (
+                              <SemanticSearchResultComponent
+                                key={result.documento.id}
+                                result={result}
+                                searchTerm={searchTerm}
+                                onClick={() => handleSemanticResultClick(result)}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <NoResults searchTerm={searchTerm} />
@@ -256,7 +310,7 @@ const Index = () => {
                 )}
 
                 {/* Paginação */}
-                {((searchMode === "articles" && results.length > 0) ||
+                {((searchMode === "articles" && (results.length > 0 || semanticResults.length > 0)) ||
                   (searchMode === "researchers" && researchers.length > 0)) && (
                   <SearchPagination
                     currentPage={currentPage}

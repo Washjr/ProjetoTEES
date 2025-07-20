@@ -1,4 +1,4 @@
-import { ArticleData, ResearcherData, ResultArticleData } from '../types';
+import { ArticleData, ResearcherData, ResultArticleData, SemanticSearchData, CombinedSearchData } from '../types';
 import { ResearcherProfileData, ResumeData } from '../types/researcher';
 // Para testes sem backend, descomente a linha abaixo e comente as funções do ApiService
 // import { ApiServiceTest as ApiService } from './apiServiceTest';
@@ -48,6 +48,49 @@ export class ApiService {
       return result;
     } catch (error) {
       console.error('Erro ao buscar artigos:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca semântica de artigos baseado no termo de pesquisa
+   */
+  static async searchArticlesSemantic(searchTerm: string): Promise<SemanticSearchData> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/artigos/busca_semantica?termo=${encodeURIComponent(searchTerm)}&k=10`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Erro na busca semântica: ${response.status} ${response.statusText}`);
+      }
+      
+      const data: SemanticSearchData = await response.json();
+      console.log('Dados da busca semântica:', data);
+      return data;
+    } catch (error) {
+      console.error('Erro na busca semântica:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca combinada: termo + semântica
+   */
+  static async searchArticlesCombined(searchTerm: string, incluirResumo: boolean = true): Promise<CombinedSearchData> {
+    try {
+      // Executar ambas as buscas em paralelo
+      const [termoBusca, buscaSemantica] = await Promise.all([
+        this.searchArticles(searchTerm, incluirResumo),
+        this.searchArticlesSemantic(searchTerm)
+      ]);
+
+      return {
+        termo_busca: termoBusca,
+        busca_semantica: buscaSemantica
+      };
+    } catch (error) {
+      console.error('Erro na busca combinada:', error);
       throw error;
     }
   }
