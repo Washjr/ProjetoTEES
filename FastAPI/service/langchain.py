@@ -7,6 +7,8 @@ import logging
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from config import configuracoes
+import re
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,13 @@ class LangchainService:
     MAX_JOURNAL_TAGS_CHARS = 30 # Máximo de caracteres para journal em tags
     MAX_ABSTRACT_CHARS = 200    # Máximo de caracteres para abstracts
     MAX_RESUMO_CHARS = 300      # Máximo de caracteres para resumo pessoal
+    
+    # Constantes para chunking semântico
+    MAX_CHUNK_SIZE = 300  # Caracteres por chunk
+    MAX_CHUNKS_PER_DOC = 3  # Máximo de chunks por documento
+    CHUNK_OVERLAP = 50  # Sobreposição entre chunks
+    SIMILARITY_THRESHOLD = 0.3  # Limiar mínimo de similaridade
+    MAX_CHUNKS_TOTAL = 10  # Máximo total de chunks para análise
     
     TEMPLATES = {
         "pesquisador": (
@@ -86,6 +95,137 @@ class LangchainService:
         self.llm = OpenAI(api_key=api_key, temperature=0.3, model_name="gpt-3.5-turbo-instruct", max_tokens=500)
         self.embedder = OpenAIEmbeddings(api_key=api_key)
         self.splitter = CharacterTextSplitter(chunk_size=3000, chunk_overlap=50)
+        
+        # Cache para embeddings para otimizar performance
+        self._embedding_cache = {}
+
+    def _get_text_hash(self, text: str) -> str:
+        """Gera hash do texto para cache de embeddings"""
+        return hashlib.md5(text.encode('utf-8')).hexdigest()
+
+    def _get_cached_embedding(self, text: str) -> List[float]:
+        """Obtém embedding do cache ou gera novo"""
+        text_hash = self._get_text_hash(text)
+        if text_hash in self._embedding_cache:
+            return self._embedding_cache[text_hash]
+        
+        embedding = self.embedder.embed_query(text)
+        self._embedding_cache[text_hash] = embedding
+        return embedding
+
+    def _split_into_semantic_chunks(self, text: str, doc_id: str = "") -> List[Dict]:
+        """
+        Divide texto em chunks semânticos (por sentenças/parágrafos)
+        """
+        if not text or len(text) < 50:
+            return [{"text": text, "doc_id": doc_id, "chunk_id": 0}]
+        
+        # Dividir por sentenças primeiro
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        
+        chunks = []
+        current_chunk = ""
+        chunk_id = 0
+        
+        for sentence in sentences:
+            # Se adicionar a sentença exceder o limite, criar novo chunk
+            if len(current_chunk + sentence) > self.MAX_CHUNK_SIZE and current_chunk:
+                chunks.append({
+                    "text": current_chunk.strip(),
+                    "doc_id": doc_id,
+                    "chunk_id": chunk_id
+                })
+                chunk_id += 1
+                
+                # Começar novo chunk com overlap
+                if len(current_chunk) > self.CHUNK_OVERLAP:
+                    current_chunk = current_chunk[-self.CHUNK_OVERLAP:] + " " + sentence
+                else:
+                    current_chunk = sentence
+            else:
+                current_chunk += " " + sentence
+        
+        # Adicionar último chunk
+        if current_chunk.strip():
+            chunks.append({
+                "text": current_chunk.strip(),
+                "doc_id": doc_id,
+                "chunk_id": chunk_id
+            })
+        
+        return chunks[:self.MAX_CHUNKS_PER_DOC]  # Limitar chunks por documento
+
+    def _filter_relevant_chunks(self, user_query: str, documentos: List[Dict], tipo: str, max_chunks: int = None) -> List[Dict]:
+        """
+        Filtra chunks mais relevantes usando embeddings
+        """
+        if max_chunks is None:
+            max_chunks = self.MAX_CHUNKS_TOTAL
+            
+        if not documentos or not user_query:
+            return documentos
+        
+        try:
+            # Gerar embedding da query com cache
+            query_embedding = self._get_cached_embedding(user_query)
+            
+            all_chunks = []
+            
+            # Criar chunks para cada documento
+            for doc_idx, doc in enumerate(documentos):
+                if tipo == "pesquisador":
+                    text = f"{doc.get('nome', '')} {doc.get('titulo', '')} {doc.get('resumo', '')}"
+                elif tipo == "artigo":
+                    text = f"{doc.get('title', '')} {doc.get('abstract', '')}"
+                else:
+                    text = str(doc)
+                
+                # Dividir em chunks semânticos
+                chunks = self._split_into_semantic_chunks(text, doc_id=str(doc_idx))
+                
+                # Adicionar metadados do documento original aos chunks
+                for chunk in chunks:
+                    chunk['original_doc'] = doc
+                    chunk['doc_type'] = tipo
+                    all_chunks.append(chunk)
+            
+            # Calcular embeddings apenas dos textos dos chunks
+            chunk_texts = [chunk['text'] for chunk in all_chunks]
+            chunk_embeddings = []
+            
+            # Usar cache para embeddings dos chunks
+            for text in chunk_texts:
+                embedding = self._get_cached_embedding(text)
+                chunk_embeddings.append(embedding)
+            
+            # Calcular similaridades
+            query_emb = np.array(query_embedding).reshape(1, -1)
+            chunk_embs = np.array(chunk_embeddings)
+            similarities = cosine_similarity(query_emb, chunk_embs)[0]
+            
+            # Aplicar threshold de similaridade
+            chunk_similarity_pairs = [
+                (chunk, sim) for chunk, sim in zip(all_chunks, similarities) 
+                if sim >= self.SIMILARITY_THRESHOLD
+            ]
+            
+            # Se não houver chunks acima do threshold, pegar os melhores mesmo assim
+            if not chunk_similarity_pairs:
+                chunk_similarity_pairs = list(zip(all_chunks, similarities))
+            
+            # Ordenar chunks por relevância
+            chunk_similarity_pairs.sort(key=lambda x: x[1], reverse=True)
+            
+            # Pegar os top chunks mais relevantes
+            relevant_chunks = [chunk for chunk, _ in chunk_similarity_pairs[:max_chunks]]
+            
+            logger.info(f"Filtrados {len(relevant_chunks)} chunks mais relevantes de {len(all_chunks)} totais (threshold: {self.SIMILARITY_THRESHOLD})")
+            return relevant_chunks
+            
+        except Exception as e:
+            logger.warning(f"Erro ao filtrar chunks: {e}")
+            return documentos
 
     def _filter_relevant_content(self, user_query: str, documentos: List[Dict], tipo: str, max_docs: int = None) -> List[Dict]:
         """
@@ -136,7 +276,65 @@ class LangchainService:
             return documentos[:max_docs]
 
 
+    def summarize_with_chunks(self, documentos: List[Dict], tipo: str, user_query: str = "") -> str:
+        """
+        Versão otimizada do resumo usando chunks semânticos
+        """
+        if not user_query:
+            # Fallback para método original se não há query
+            return self.summarize(documentos, tipo, user_query)
+            
+        # Template otimizado para chunks
+        optimized_template = (
+            "Analise estes trechos relevantes sobre {tipo}:\n\n"
+            "{content}\n\n"
+            "Gere um resumo em 2 parágrafos:\n"
+            "1) Principais temas identificados\n"
+            "2) Tendências ou padrões observados\n\n"
+            "Seja conciso e informativo."
+        )
+        
+        prompt = PromptTemplate(
+            input_variables=["content", "tipo"], 
+            template=optimized_template
+        )
+
+        # Usar chunking semântico
+        relevant_chunks = self._filter_relevant_chunks(
+            user_query, documentos, tipo, max_chunks=8
+        )
+        
+        # Construir conteúdo a partir dos chunks mais relevantes
+        chunk_texts = []
+        for chunk in relevant_chunks:
+            doc = chunk['original_doc']
+            if tipo == "pesquisador":
+                context = f"Pesquisador {doc.get('nome', '')}: {chunk['text']}"
+            elif tipo == "artigo":
+                context = f"Artigo '{doc.get('title', '')}': {chunk['text']}"
+            else:
+                context = chunk['text']
+            
+            chunk_texts.append(context)
+        
+        content = "\n\n".join(chunk_texts)
+        
+        logger.info(f"Gerando resumo com chunking para tipo '{tipo}' usando {len(relevant_chunks)} chunks")
+
+        runnable: Runnable = prompt | self.llm
+        return runnable.invoke({
+            "content": content,
+            "tipo": tipo
+        })
     def summarize(self, documentos: List[Dict], tipo: str, user_query: str = "") -> str:
+        """
+        Método principal de resumo - escolhe automaticamente a melhor estratégia
+        """
+        # Se há query do usuário, usar chunking semântico
+        if user_query and len(user_query.strip()) > 10:
+            return self.summarize_with_chunks(documentos, tipo, user_query)
+        
+        # Método original para casos sem query específica
         tpl = self.TEMPLATES.get(tipo)
         if not tpl:
             raise ValueError(f"Tipo desconhecido para resumo: {tipo}")
@@ -223,27 +421,46 @@ class LangchainService:
             template = self.TEMPLATES["tags_pesquisador"]
             prompt = PromptTemplate(input_variables=["producoes"], template=template)
 
-            # Filtrar produções por relevância usando embedding da query do usuário
-            if user_query:
-                producoes_relevantes = self._filter_relevant_content(user_query, producoes, "artigo", max_docs=self.MAX_PRODUCOES_FOR_TAGS)
-            else:
-                producoes_relevantes = producoes[:self.MAX_PRODUCOES_FOR_TAGS]  # Limitar usando constante se não houver query
-
-            # Formatar produções de forma mais concisa
-            producoes_texto = []
-            
-            for producao in producoes_relevantes:
-                titulo = producao.get('title', 'Sem título')[:self.MAX_TITULO_PRODUCAO_CHARS]  # Limitar título usando constante
-                journal = producao.get('journal', '')[:self.MAX_JOURNAL_TAGS_CHARS] if producao.get('journal') else ''  # Limitar journal usando constante
+            # Se há query, usar chunking semântico para melhor precisão
+            if user_query and len(user_query.strip()) > 10:
+                # Usar chunking para produções
+                relevant_chunks = self._filter_relevant_chunks(user_query, producoes, "artigo", max_chunks=6)
                 
-                texto = f"• {titulo}"
-                if journal:
-                    texto += f" ({journal})"
-                producoes_texto.append(texto)
+                # Formatar chunks de forma concisa
+                producoes_texto = []
+                for chunk in relevant_chunks:
+                    doc = chunk['original_doc']
+                    titulo = doc.get('title', 'Sem título')[:self.MAX_TITULO_PRODUCAO_CHARS]
+                    journal = doc.get('journal', '')[:self.MAX_JOURNAL_TAGS_CHARS] if doc.get('journal') else ''
+                    
+                    texto = f"• {titulo}"
+                    if journal:
+                        texto += f" ({journal})"
+                    producoes_texto.append(texto)
+                
+                logger.info(f"Gerando tags com chunking para {len(relevant_chunks)} chunks de {len(producoes)} produções")
+            else:
+                # Filtrar produções por relevância usando embedding da query do usuário
+                if user_query:
+                    producoes_relevantes = self._filter_relevant_content(user_query, producoes, "artigo", max_docs=self.MAX_PRODUCOES_FOR_TAGS)
+                else:
+                    producoes_relevantes = producoes[:self.MAX_PRODUCOES_FOR_TAGS]  # Limitar usando constante se não houver query
+
+                # Formatar produções de forma mais concisa
+                producoes_texto = []
+                
+                for producao in producoes_relevantes:
+                    titulo = producao.get('title', 'Sem título')[:self.MAX_TITULO_PRODUCAO_CHARS]  # Limitar título usando constante
+                    journal = producao.get('journal', '')[:self.MAX_JOURNAL_TAGS_CHARS] if producao.get('journal') else ''  # Limitar journal usando constante
+                    
+                    texto = f"• {titulo}"
+                    if journal:
+                        texto += f" ({journal})"
+                    producoes_texto.append(texto)
+
+                logger.info(f"Gerando tags para {len(producoes_relevantes)} produções mais relevantes de {len(producoes)} totais")
 
             producoes_formatadas = "\n".join(producoes_texto)
-
-            logger.info("Gerando tags para %d produções mais relevantes de %d totais", len(producoes_relevantes), len(producoes))
 
             runnable: Runnable = prompt | self.llm
             resultado = runnable.invoke({"producoes": producoes_formatadas})
@@ -270,26 +487,42 @@ class LangchainService:
             template = self.TEMPLATES["tags_artigo"]
             prompt = PromptTemplate(input_variables=["content"], template=template)
 
-            # Filtrar artigos por relevância usando embedding da query do usuário
-            if user_query:
-                documentos_relevantes = self._filter_relevant_content(user_query, documentos, "artigo", max_docs=self.MAX_DOCS_FOR_TAGS)
-            else:
-                documentos_relevantes = documentos[:self.MAX_DOCS_FOR_TAGS]  # Limitar usando constante se não houver query
-
-            # Formatar artigos de forma concisa
-            texts = []            
-            for doc in documentos_relevantes:
-                titulo = doc.get('title', 'Sem título')[:self.MAX_TITULO_PRODUCAO_CHARS]  # Limitar título usando constante
-                abstract = doc.get('abstract', '')[:self.MAX_ABSTRACT_CHARS]  # Limitar resumo usando constante
+            # Se há query, usar chunking semântico para melhor precisão
+            if user_query and len(user_query.strip()) > 10:
+                # Usar chunking para artigos
+                relevant_chunks = self._filter_relevant_chunks(user_query, documentos, "artigo", max_chunks=6)
                 
-                if abstract:
-                    texts.append(f"{titulo}: {abstract}")
+                # Formatar chunks de forma concisa
+                texts = []
+                for chunk in relevant_chunks:
+                    doc = chunk['original_doc']
+                    titulo = doc.get('title', 'Sem título')[:self.MAX_TITULO_PRODUCAO_CHARS]
+                    texto_chunk = chunk['text'][:self.MAX_ABSTRACT_CHARS]
+                    
+                    texts.append(f"{titulo}: {texto_chunk}")
+                
+                content = "\n\n".join(texts)
+                logger.info(f"Gerando tags com chunking para {len(relevant_chunks)} chunks de {len(documentos)} artigos")
+            else:
+                # Filtrar artigos por relevância usando embedding da query do usuário
+                if user_query:
+                    documentos_relevantes = self._filter_relevant_content(user_query, documentos, "artigo", max_docs=self.MAX_DOCS_FOR_TAGS)
                 else:
-                    texts.append(titulo)
+                    documentos_relevantes = documentos[:self.MAX_DOCS_FOR_TAGS]  # Limitar usando constante se não houver query
 
-            content = "\n\n".join(texts)
+                # Formatar artigos de forma concisa
+                texts = []            
+                for doc in documentos_relevantes:
+                    titulo = doc.get('title', 'Sem título')[:self.MAX_TITULO_PRODUCAO_CHARS]  # Limitar título usando constante
+                    abstract = doc.get('abstract', '')[:self.MAX_ABSTRACT_CHARS]  # Limitar resumo usando constante
+                    
+                    if abstract:
+                        texts.append(f"{titulo}: {abstract}")
+                    else:
+                        texts.append(titulo)
 
-            logger.info("Gerando tags para %d artigos mais relevantes de %d totais", len(documentos_relevantes), len(documentos))
+                content = "\n\n".join(texts)
+                logger.info(f"Gerando tags para {len(documentos_relevantes)} artigos mais relevantes de {len(documentos)} totais")
 
             runnable: Runnable = prompt | self.llm
             resultado = runnable.invoke({"content": content})
