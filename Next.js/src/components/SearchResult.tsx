@@ -1,6 +1,5 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 interface SearchResultProps {
   title: string;
@@ -56,6 +55,22 @@ const SearchResult = ({
     }
   };
 
+  const getQualitsColor = (qualis?: string) => {
+    switch (qualis?.toUpperCase()) {
+      case 'A1': return 'bg-green-600 text-white';
+      case 'A2': return 'bg-green-500 text-white';
+      case 'A3': return 'bg-green-400 text-white';
+      case 'A4': return 'bg-green-300 text-gray-800';
+      case 'B1': return 'bg-orange-600 text-white';
+      case 'B2': return 'bg-orange-500 text-white';
+      case 'B3': return 'bg-orange-400 text-gray-800';
+      case 'B4': return 'bg-orange-300 text-gray-800';
+      case 'C': return 'bg-red-500 text-white';
+      case 'SQ': return 'bg-gray-400 text-white';
+      default: return 'bg-gray-300 text-gray-800';
+    }
+  };
+
   const publicationInfo = [
     journal,
     year.toString(),
@@ -84,13 +99,13 @@ const SearchResult = ({
               </h3>
               <div className="flex gap-2 self-start">
                 {qualis && (
-                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200">
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${getQualitsColor(qualis)}`}>
                     {qualis}
-                  </Badge>
+                  </span>
                 )}
-                <Badge variant="outline" className="text-xs border-slate-300 text-slate-600">
+                <span className="px-2 py-1 rounded text-xs border border-slate-300 text-slate-600 bg-white">
                   {year}
-                </Badge>
+                </span>
               </div>
             </div>
             
