@@ -96,6 +96,18 @@ class ArtigoController:
         )
 
         self.router.add_api_route(
+            "/self_query/debug_query",
+            self.debug_query_constructor,
+            response_model=None,
+            methods=["GET"],
+            summary="Debug do Query Constructor",
+            description=(
+                "Endpoint para verificar a query estruturada gerada pelo query_constructor "
+                "a partir de uma consulta em linguagem natural, sem executar a busca."
+            )
+        )
+
+        self.router.add_api_route(
             "/",
             self.adicionar,
             response_model=Artigo,
@@ -371,6 +383,68 @@ class ArtigoController:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Erro ao listar filtros: {str(e)}"
             )
+
+    def debug_query_constructor(
+        self,
+        query: str = Query(..., min_length=1, description="Consulta em linguagem natural para debug")
+    ):
+        """
+        Endpoint para debugar o query_constructor e ver a query estruturada gerada.
+        
+        Retorna informações sobre:
+        - Query original
+        - Query estruturada gerada
+        - Filtros aplicados
+        - Metadados extraídos
+        
+        Exemplos de uso:
+        - "artigos de machine learning publicados após 2020"
+        - "trabalhos em periódicos A1 sobre redes neurais"
+        - "pesquisas com qualis melhor que B1"
+        """
+        try:
+            # Inicializar o retriever se necessário (apenas para ter acesso ao query_constructor)
+            if self.self_query.retriever is None:
+                self.self_query.initialize_retriever(limit_documents=1)  # Mínimo necessário
+            
+            # Executar apenas o query_constructor para ver a query estruturada
+            structured_query = self.self_query.query_constructor.invoke({"query": query})
+            
+            # Preparar resposta detalhada
+            response = {
+                "original_query": query,
+                "success": True,
+                "structured_query": {
+                    "query": structured_query.query if hasattr(structured_query, 'query') else None,
+                    "filter": str(structured_query.filter) if hasattr(structured_query, 'filter') else None,
+                    "limit": structured_query.limit if hasattr(structured_query, 'limit') else None
+                }
+            }
+            
+            # Adicionar informações extras se disponíveis
+            if hasattr(structured_query, 'filter') and structured_query.filter:
+                response["filter_analysis"] = {
+                    "filter_type": type(structured_query.filter).__name__,
+                    "has_filters": True,
+                    "filter_details": str(structured_query.filter)
+                }
+            else:
+                response["filter_analysis"] = {
+                    "has_filters": False,
+                    "message": "Nenhum filtro foi extraído da consulta"
+                }
+            
+            return response
+        
+        except Exception as e:
+            logger.error(f"Erro no debug do query constructor: {e}")
+            return {
+                "original_query": query,
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "message": "Erro ao processar a consulta com o query_constructor"
+            }
         
 # Instância do controller e router exportável
 artigo_controller = ArtigoController()

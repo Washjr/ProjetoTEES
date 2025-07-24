@@ -21,6 +21,10 @@ from langchain_community.query_constructors.chroma import ChromaTranslator
 
 logger = logging.getLogger(__name__)
 
+from langchain.chains.query_constructor.base import (
+    StructuredQueryOutputParser,
+    get_query_constructor_prompt,
+)
 
 class SelfQueryRetrieverService:
     """
@@ -64,6 +68,13 @@ class SelfQueryRetrieverService:
             "document_content_description", 
             "Artigos científicos com título, resumo e metadados de publicação acadêmica"
         )
+
+        prompt = get_query_constructor_prompt(
+            self.document_content_description,
+            self.attribute_infos,
+        )
+        output_parser = StructuredQueryOutputParser.from_components()
+        self.query_constructor = prompt | self.llm | output_parser
         
         # Inicializar o retriever
         self.retriever = None
