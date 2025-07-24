@@ -11,8 +11,13 @@
       "type": "string"
     },
     {
+        "name": "qualis_score",
+        "description": "Pontuação numérica do Qualis: A1=9, A2=8, A3=7, A4=6, B1=5, B2=4, B3=3, B4=2, C=1",
+        "type": "integer"
+    },
+    {
       "name": "qualis_score",
-      "description": "Pontuação numérica do Qualis para comparações (A1=7, A2=6, A3=5, A4=4, B1=3, B2=2, B3=1, B4=1, C=0). Use este campo para filtros como 'B1 ou superior'",
+      "description": "Pontuação numérica do Qualis para comparações (A1=9, A2=8, A3=7, A4=6, B1=5, B2=4, B3=3, B4=2, C=1). Use este campo para filtros como 'B1 ou superior'. Use APENAS para comparações numéricas. A busca textual principal deve ser feita no conteúdo do documento.",
       "type": "integer"
     },
     {

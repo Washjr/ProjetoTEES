@@ -1,3 +1,4 @@
+from importlib import metadata
 import json
 import os
 import pickle
@@ -177,15 +178,15 @@ class SelfQueryRetrieverService:
     def _qualis_to_numeric(self, qualis: str) -> int:
         """Converte classificação Qualis para valor numérico para comparações."""
         qualis_map = {
-            'A1': 7,
-            'A2': 6,
-            'A3': 5,
-            'A4': 4,
-            'B1': 3,
-            'B2': 2,
-            'B3': 1,
-            'B4': 1,
-            'C': 0,
+            'A1': 9,
+            'A2': 8,
+            'A3': 7,
+            'A4': 6,
+            'B1': 5,
+            'B2': 4,
+            'B3': 3,
+            'B4': 2,
+            'C': 1,
             '': 0
         }
         return qualis_map.get(qualis.upper(), 0)
@@ -274,13 +275,13 @@ class SelfQueryRetrieverService:
             
             # Configurar vectorstore com cache
             self._vectorstore = self._setup_vectorstore(documents, cache_key)
-            
+
             # Criar SelfQueryRetriever
             self.retriever = SelfQueryRetriever.from_llm(
                 llm=self.llm,
-                vectorstore=self._vectorstore,
                 document_contents=self.document_content_description,
                 metadata_field_info=self.attribute_infos,
+                vectorstore=self._vectorstore,
                 structured_query_translator=ChromaTranslator(),
                 verbose=True
             )
@@ -314,8 +315,19 @@ class SelfQueryRetrieverService:
             results = self.retriever.invoke(query_text)
             
             logger.info(f"Consulta executada: '{query_text}' - {len(results)} resultados")
+            # Salvar consulta e resultados em arquivo
             with open("query_results.txt", "a", encoding="utf-8") as f:
+                # Obter a query estruturada gerada pelo retriever
+                structured_query = getattr(self.retriever, "last_query", None)
+                if structured_query is None and hasattr(self.retriever, "query_constructor"):
+                    # Tenta obter a query estruturada do output_parser
+                    try:
+                        structured_query = self.retriever.query_constructor.invoke(query_text)
+                    except Exception:
+                        structured_query = None
+
                 f.write(f"Consulta: {query_text}\n")
+                f.write(f"Query estruturada: {structured_query}\n")
                 for i, doc in enumerate(results, 1):
                     f.write(f"{i}. {doc.page_content[:100]}...\n")
                     f.write(f"   Metadados: {doc.metadata}\n")
@@ -351,14 +363,11 @@ if __name__ == "__main__":
     service = SelfQueryRetrieverService()
     
     # Inicializar com poucos documentos para teste
-    service.initialize_retriever(limit_documents=10)
+    service.initialize_retriever()
     
     # Exemplos de consultas
     queries = [
-        "Artigos sobre inteligência artificial publicados após 2020",
-        "Pesquisas do autor João Silva",
-        "Trabalhos publicados em periódicos Qualis A1",
-        "Artigos sobre machine learning com classificação B1 ou superior"
+        "Robótica com qualis A4 ou superior",
     ]
     
     for query in queries:
