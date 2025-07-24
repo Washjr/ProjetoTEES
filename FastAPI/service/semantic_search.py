@@ -48,7 +48,7 @@ class SemanticSearchService:
                 allow_dangerous_deserialization=True
             )
         except Exception:
-            faiss_index = faiss.IndexFlatL2(len(self.embedder.embed_query("hello world")))
+            faiss_index = faiss.IndexFlatIP(len(self.embedder.embed_query("hello world")))
 
             return FAISS(
                 embedding_function=self.embedder,
@@ -92,18 +92,22 @@ class SemanticSearchService:
 
     def semantic_search(self, query: str, k: int = 10, tipo: str = 'artigo'):
         index = self.indices.get(tipo)
-        resultados  = index.similarity_search_with_score(query, k=k)
+        resultados = index.similarity_search_with_score(query, k=k)
 
-        # Define um limiar de corte
-        SCORE_THRESHOLD = 0.0
+        # Para IndexFlatIP (produto interno/cosseno), scores maiores = maior similaridade
+        # Os scores já estão entre -1 e 1 (ou 0 e 1 para embeddings normalizados)
+        # Threshold ajustado para similaridade por cosseno
+        SCORE_THRESHOLD = 0.6  # Valores típicos: 0.7-0.8 para boa similaridade
 
         resultados_filtrados = []
         for doc, score in resultados:
             score = float(score)
-            score_similaridade = 1 / (1 + score)
-
+            
+            # Para similaridade por cosseno, o score já é a similaridade
+            # Normaliza para range 0-1 se necessário (embeddings OpenAI são normalizados)
+            score_similaridade = max(0.0, min(1.0, score))
+            
             if score_similaridade >= SCORE_THRESHOLD:
-                resultados_filtrados.append((doc, score_similaridade))
-                # resultados_filtrados.append((doc, round(score_similaridade, 4)))
+                resultados_filtrados.append((doc, round(score_similaridade, 4)))
 
         return [(doc.metadata['doc'], score) for doc, score in resultados_filtrados]

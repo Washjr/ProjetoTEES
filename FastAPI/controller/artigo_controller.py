@@ -108,6 +108,19 @@ class ArtigoController:
         )
 
         self.router.add_api_route(
+            "/busca_hibrida",
+            self.busca_hibrida_artigos,
+            response_model=None,
+            methods=["GET"],
+            summary="Busca híbrida inteligente",
+            description=(
+                "Realiza busca híbrida combinando busca por termos, busca semântica "
+                "e filtros automáticos extraídos da consulta. Retorna resultados "
+                "unificados e filtrados usando SelfQueryRetriever."
+            )
+        )
+
+        self.router.add_api_route(
             "/",
             self.adicionar,
             response_model=Artigo,
@@ -445,6 +458,286 @@ class ArtigoController:
                 "error_type": type(e).__name__,
                 "message": "Erro ao processar a consulta com o query_constructor"
             }
+
+    def busca_hibrida_artigos(
+        self,
+        query: str = Query(..., min_length=1, description="Consulta em linguagem natural"),
+        max_results: int = Query(20, ge=1, le=100, description="Número máximo de resultados"),
+        peso_semantico: float = Query(0.5, ge=0.0, le=1.0, description="Peso da busca semântica (0-1)")
+    ):
+        """
+        Endpoint para busca híbrida que combina:
+        1. Query constructor para separar query de filtros
+        2. Busca por termos + busca semântica
+        3. Self-query para filtrar os resultados combinados
+        
+        Args:
+            query: Consulta em linguagem natural
+            max_results: Número máximo de resultados
+            peso_semantico: Peso para combinar resultados (0=só termos, 1=só semântica)
+        
+        Exemplos:
+        - "artigos de machine learning publicados após 2020"
+        - "trabalhos em periódicos A1 sobre redes neurais"
+        - "pesquisas com qualis melhor que B1 sobre COVID-19"
+        """
+        try:
+            # Passo 1: Inicializar o retriever para acessar o query_constructor
+            if self.self_query.retriever is None:
+                self.self_query.initialize_retriever(limit_documents=1)
+            
+            # Extrair query estruturada usando o query_constructor
+            structured_query = self.self_query.query_constructor.invoke({"query": query})
+            
+            # Extrair a query de conteúdo e filtros separadamente
+            content_query = structured_query.query if hasattr(structured_query, 'query') and structured_query.query else query
+            filters = structured_query.filter if hasattr(structured_query, 'filter') else None
+            
+            logger.info(f"Query separada - Conteúdo: '{content_query}', Filtros: {filters}")
+            
+            # Passo 2: Realizar busca por termos e busca semântica
+            # Busca por termos
+            resultados_termos = self.dao.buscar_por_termo(content_query)
+            
+            # Busca semântica
+            resultados_semanticos = self.semantic.semantic_search(content_query, k=max_results, tipo="artigo")
+            
+            # Combinar resultados de ambas as buscas
+            resultados_combinados = self._combinar_resultados(
+                resultados_termos, 
+                resultados_semanticos, 
+                peso_semantico
+            )
+            
+            logger.info(f"Resultados combinados: {len(resultados_combinados)} artigos")
+            
+            # Passo 3: Criar retriever temporário com os resultados combinados
+            if resultados_combinados:
+                # Converter resultados para documentos
+                documents_filtrados = self._criar_documentos_temporarios(resultados_combinados)
+                
+                # Criar retriever temporário com os documentos filtrados
+                retriever_temp = self._criar_retriever_temporario(documents_filtrados)
+                
+                # Aplicar filtros usando o retriever temporário
+                if filters and retriever_temp:
+                    # Executar consulta com filtros no retriever temporário
+                    resultados_filtrados = retriever_temp.invoke(query)
+                    
+                    # Converter de volta para formato do frontend
+                    articles_finais = self._converter_documentos_para_artigos(resultados_filtrados)
+                else:
+                    # Se não há filtros, usar os resultados combinados diretamente
+                    articles_finais = [
+                        {
+                            "artigo": resultado["artigo"],
+                            "score": resultado["score"],
+                            "metadata": {
+                                "year": resultado["artigo"].get("year"),
+                                "qualis": resultado["artigo"].get("qualis", ""),
+                                "journal": resultado["artigo"].get("journal", ""),
+                                "doi": resultado["artigo"].get("doi", ""),
+                                "author_name": resultado["artigo"].get("author_name", "")
+                            }
+                        }
+                        for resultado in resultados_combinados[:max_results]
+                    ]
+            else:
+                articles_finais = []
+
+            # Reordena os artigos filtrados para priorizar os que vieram da busca por termos
+            ids_termos = {artigo.get('id') for artigo in resultados_termos if artigo.get('id')}
+            articles_termos = [a for a in articles_finais if a["artigo"].get("id") in ids_termos]
+            articles_semanticos = [a for a in articles_finais if a["artigo"].get("id") not in ids_termos]
+            # Ordena os artigos semânticos por score decrescente
+            articles_semanticos.sort(key=lambda x: x["score"], reverse=True)
+            articles_finais = articles_termos + articles_semanticos
+                
+            return {
+                "query": query,
+                "method": "hybrid_search",
+                "structured_query": {
+                    "content_query": content_query,
+                    "filters": str(filters) if filters else None
+                },
+                "search_stats": {
+                    "resultados_termos": len(resultados_termos),
+                    "resultados_semanticos": len(resultados_semanticos),
+                    "resultados_combinados": len(resultados_combinados),
+                    "peso_semantico": peso_semantico
+                },
+                "total_found": len(articles_finais),
+                "results": articles_finais
+            }
+        
+        except Exception as e:
+            logger.error(f"Erro na busca híbrida: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Erro ao processar busca híbrida: {str(e)}"
+            )
+
+    def _combinar_resultados(self, resultados_termos, resultados_semanticos, peso_semantico):
+        """
+        Combina resultados de busca por termos e semântica com pesos.
+        """
+        # Criar dicionário para combinar resultados por ID
+        artigos_combinados = {}
+        
+        # Processar resultados de termos
+        for artigo in resultados_termos:
+            artigo_id = artigo.get('id')
+            if artigo_id:
+                artigos_combinados[artigo_id] = {
+                    "artigo": artigo,
+                    "score_termos": 1.0,  # Score fixo para busca por termos
+                    "score_semantico": 0.0,
+                    "origem": ["termos"]
+                }
+        
+        # Processar resultados semânticos
+        for artigo, score in resultados_semanticos:
+            artigo_id = artigo.get('id')
+            if artigo_id:
+                if artigo_id in artigos_combinados:
+                    # Artigo já existe, atualizar score semântico
+                    artigos_combinados[artigo_id]["score_semantico"] = score
+                    artigos_combinados[artigo_id]["origem"].append("semantica")
+                else:
+                    # Novo artigo apenas da busca semântica
+                    artigos_combinados[artigo_id] = {
+                        "artigo": artigo,
+                        "score_termos": 0.0,
+                        "score_semantico": score,
+                        "origem": ["semantica"]
+                    }
+        
+        # Calcular score final combinado
+        resultados_finais = []
+        for dados in artigos_combinados.values():
+            score_final = (
+                (1 - peso_semantico) * dados["score_termos"] + 
+                peso_semantico * dados["score_semantico"]
+            )
+            
+            resultados_finais.append({
+                "artigo": dados["artigo"],
+                "score": score_final,
+                "scores_detalhados": {
+                    "termos": dados["score_termos"],
+                    "semantico": dados["score_semantico"],
+                    "final": score_final
+                },
+                "origem": dados["origem"]
+            })
+        
+        # Ordenar por score final (decrescente)
+        resultados_finais.sort(key=lambda x: x["score"], reverse=True)
+        
+        return resultados_finais
+
+    def _criar_documentos_temporarios(self, resultados_combinados):
+        """
+        Converte resultados combinados em documentos para o retriever temporário.
+        """
+        documents = []
+        
+        for resultado in resultados_combinados:
+            artigo = resultado["artigo"]
+            
+            # Criar conteúdo do documento
+            title = artigo.get('title', '') or ''
+            abstract = artigo.get('abstract', '') or ''
+            content = f"Título: {title}\nResumo: {abstract}"
+            
+            # Criar metadados
+            qualis_str = artigo.get('qualis', '') or ''
+            metadata = {
+                "year": artigo.get('year'),
+                "qualis": qualis_str,
+                "qualis_score": self.self_query._qualis_to_numeric(qualis_str),
+                "journal": artigo.get('journal', ''),
+                "author_name": artigo.get('author_name', ''),
+                "doi": artigo.get('doi', ''),
+                "hybrid_score": resultado["score"]
+            }
+            
+            # Filtrar valores None
+            metadata = {k: v for k, v in metadata.items() if v is not None}
+            
+            from langchain_core.documents import Document
+            doc = Document(page_content=content, metadata=metadata)
+            documents.append(doc)
+        
+        return documents
+
+    def _criar_retriever_temporario(self, documents):
+        """
+        Cria um retriever temporário com os documentos fornecidos.
+        """
+        try:
+            from langchain_chroma import Chroma
+            from langchain_openai import OpenAIEmbeddings
+            from langchain.retrievers.self_query.base import SelfQueryRetriever
+            
+            # Usar embeddings do OpenAI
+            embeddings = OpenAIEmbeddings(
+                model="text-embedding-3-small",
+                api_key=self.self_query.api_key
+            )
+            
+            # Criar vectorstore temporário em memória
+            vectorstore_temp = Chroma.from_documents(
+                documents=documents,
+                embedding=embeddings,
+                persist_directory=None  # Em memória
+            )
+            
+            # Criar retriever temporário com os mesmos AttributeInfo
+            retriever_temp = SelfQueryRetriever.from_llm(
+                llm=self.self_query.llm,
+                vectorstore=vectorstore_temp,
+                document_contents=self.self_query.document_content_description,
+                metadata_field_info=self.self_query.attribute_infos,
+                verbose=True
+            )
+            
+            return retriever_temp
+            
+        except Exception as e:
+            logger.error(f"Erro ao criar retriever temporário: {e}")
+            return None
+
+    def _converter_documentos_para_artigos(self, documents):
+        """
+        Converte documentos do retriever de volta para formato de artigos.
+        """
+        articles = []
+        
+        for doc in documents:
+            # Extrair informações do conteúdo
+            content_lines = doc.page_content.split('\n')
+            title = content_lines[0].replace('Título: ', '') if content_lines else ''
+            abstract = content_lines[1].replace('Resumo: ', '') if len(content_lines) > 1 else ''
+            
+            # Construir objeto artigo
+            article_data = {
+                "title": title,
+                "abstract": abstract,
+                "year": doc.metadata.get('year'),
+                "qualis": doc.metadata.get('qualis', ''),
+                "journal": doc.metadata.get('journal', ''),
+                "doi": doc.metadata.get('doi', ''),
+                "author_name": doc.metadata.get('author_name', '')
+            }
+            
+            articles.append({
+                "artigo": article_data,
+                "score": doc.metadata.get('hybrid_score', 1.0),
+                "metadata": doc.metadata
+            })
+        
+        return articles
         
 # Instância do controller e router exportável
 artigo_controller = ArtigoController()
