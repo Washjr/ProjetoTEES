@@ -1,0 +1,172 @@
+{
+  "metadata_fields": [
+    {
+      "name": "year",
+      "description": "Ano de publicação do artigo",
+      "type": "integer",
+      "comparison_operators": {
+        "supported": ["=", ">", ">=", "<", "<="],
+        "default": "=",
+        "patterns": [
+          "(?:ano|year)\\s*([><=]+)\\s*(\\d{4})",
+          "(?:ano|year):\\s*([><=]*)\\s*(\\d{4})",
+          "(?:após|after|depois de)\\s*(\\d{4})",
+          "(?:antes de|before)\\s*(\\d{4})",
+          "(?:a partir de|from|desde)\\s*(\\d{4})",
+          "(?:até|until)\\s*(\\d{4})",
+          "em\\s*(\\d{4})"
+        ]
+      },
+      "semantic_keywords": [
+        "data de publicação",
+        "quando foi publicado",
+        "período de publicação",
+        "época da publicação",
+        "tempo de publicação",
+        "publication date",
+        "publication year"
+      ],
+      "nlp_processing": {
+        "enable_fuzzy_matching": true,
+        "similarity_threshold": 0.7,
+        "enable_synonym_expansion": true,
+        "enable_temporal_processing": true
+      }
+    },
+    {
+      "name": "qualis",
+      "description": "Classificação Qualis do periódico (A1, A2, B1, B2, B3, B4, C)",
+      "type": "string",
+      "comparison_operators": {
+        "supported": ["=", ">", ">=", "<", "<="],
+        "default": "=",
+        "hierarchy": ["A1", "A2", "B1", "B2", "B3", "B4", "C"],
+        "patterns": [
+          "qualis\\s*([><=]+)\\s*([A-C][1-4]?)",
+          "qualis:\\s*([><=]*)\\s*([A-C][1-4]?)",
+          "(?:acima de|above)\\s*([A-C][1-4]?)",
+          "(?:abaixo de|below)\\s*([A-C][1-4]?)",
+          "(?:melhor que|better than)\\s*([A-C][1-4]?)",
+          "(?:pior que|worse than)\\s*([A-C][1-4]?)"
+        ]
+      },
+      "semantic_keywords": [
+        "qualidade do periódico",
+        "classificação da revista",
+        "nível do journal",
+        "ranking da publicação",
+        "estrato qualis",
+        "categoria da revista",
+        "qualidade da revista",
+        "impacto do periódico",
+        "journal quality",
+        "publication rank"
+      ],
+      "nlp_processing": {
+        "enable_fuzzy_matching": true,
+        "similarity_threshold": 0.6,
+        "enable_synonym_expansion": true,
+        "enable_quality_terms": true
+      }
+    },
+    {
+      "name": "journal",
+      "description": "Nome do periódico onde o artigo foi publicado",
+      "type": "string",
+      "comparison_operators": {
+        "supported": ["=", "contains"],
+        "default": "contains",
+        "patterns": [
+          "(?:periodico|journal|revista):\\s*\"?([^\"]+)\"?",
+          "(?:publicado em|published in)\\s*\"?([^\"]+)\"?"
+        ]
+      },
+      "semantic_keywords": [
+        "revista científica",
+        "periódico acadêmico",
+        "veículo de publicação",
+        "meio de publicação",
+        "journal",
+        "revista",
+        "magazine",
+        "conference",
+        "proceedings"
+      ],
+      "nlp_processing": {
+        "enable_fuzzy_matching": true,
+        "similarity_threshold": 0.8,
+        "enable_synonym_expansion": true,
+        "enable_entity_extraction": true
+      }
+    },
+    {
+      "name": "author_name",
+      "description": "Nome do autor/pesquisador",
+      "type": "string",
+      "comparison_operators": {
+        "supported": ["=", "contains"],
+        "default": "contains",
+        "patterns": [
+          "(?:autor|author):\\s*\"?([^\"]+)\"?",
+          "(?:escrito por|written by|by)\\s*\"?([^\"]+)\"?"
+        ]
+      },
+      "semantic_keywords": [
+        "nome do pesquisador",
+        "autor do artigo",
+        "quem escreveu",
+        "escritor",
+        "pesquisador responsável",
+        "investigador",
+        "cientista",
+        "researcher",
+        "scientist",
+        "author"
+      ],
+      "nlp_processing": {
+        "enable_fuzzy_matching": true,
+        "similarity_threshold": 0.7,
+        "enable_synonym_expansion": true,
+        "enable_person_extraction": true
+      }
+    },
+    {
+      "name": "doi",
+      "description": "DOI (Digital Object Identifier) do artigo",
+      "type": "string",
+      "comparison_operators": {
+        "supported": ["=", "contains"],
+        "default": "contains",
+        "patterns": [
+          "doi:\\s*([^\\s]+)"
+        ]
+      },
+      "semantic_keywords": [
+        "identificador digital",
+        "código do artigo",
+        "DOI",
+        "digital object identifier",
+        "identificador único"
+      ],
+      "nlp_processing": {
+        "enable_fuzzy_matching": false,
+        "similarity_threshold": 0.9,
+        "enable_synonym_expansion": false
+      }
+    }
+  ],
+  "document_content_description": "Artigos científicos com título, resumo e metadados",
+  "search_settings": {
+    "default_semantic_weight": 0.7,
+    "default_max_results": 10,
+    "enable_exact_search": true,
+    "enable_semantic_search": true,
+    "enable_intelligent_processing": true,
+    "fallback_to_llm": true,
+    "similarity_thresholds": {
+      "high_precision": 0.9,
+      "medium_precision": 0.7,
+      "low_precision": 0.5
+    }
+  }
+}

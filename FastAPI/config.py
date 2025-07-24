@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+import os
 
 class Configuracoes(BaseSettings):
     # Banco de dados
@@ -22,3 +23,10 @@ class Configuracoes(BaseSettings):
 
 # Instância única para toda a aplicação
 configuracoes = Configuracoes()
+configuracoes.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY_IKEDA")
+
+# Verificação de debug
+print(f"Arquivo .env existe: {os.path.exists('.env')}")
+print(f"Diretório atual: {os.getcwd()}")
+print(f"Valor da API Key (primeiros 10 chars): {configuracoes.OPENAI_API_KEY[:14]}...")
+print("Configurações carregadas com sucesso!")

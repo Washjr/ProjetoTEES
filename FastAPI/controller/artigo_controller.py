@@ -5,6 +5,7 @@ from dao.artigo_dao import ArtigoDAO
 from model.artigo import Artigo
 from service.langchain import LangchainService
 from service.semantic_search import SemanticSearchService
+from service.self_query_service import SelfQueryService
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class ArtigoController:
         self.dao = ArtigoDAO()
         self.summarizer = LangchainService()
         self.semantic = SemanticSearchService()
+        self.self_query = SelfQueryService()
         self.router = APIRouter(prefix="/artigos", tags=["artigos"])
         self._register_routes()
 
@@ -53,6 +55,19 @@ class ArtigoController:
             description=(
                 "Realiza busca semântica usando embeddings para retornar artigos "
                 "ordenados por relevância no contexto da consulta."
+            )
+        )
+
+        self.router.add_api_route(
+            "/self_query",
+            self.self_query_artigos,
+            response_model=None,
+            methods=["GET"],
+            summary="Busca inteligente com filtros automáticos",
+            description=(
+                "Realiza busca combinando análise semântica e filtros extraídos "
+                "automaticamente da consulta usando patterns e processamento de linguagem natural. "
+                "Retorna artigos filtrados e os filtros aplicados."
             )
         )
 
@@ -168,6 +183,74 @@ class ArtigoController:
         except RuntimeError as e:
             logger.error("Erro ao apagar artigo: %s", e)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    def self_query_artigos(
+        self,
+        query: str = Query(..., min_length=1, description="Consulta com filtros automáticos"),
+        max_results: int = Query(10, ge=1, le=50, description="Número máximo de resultados")
+    ):
+        """
+        Endpoint para busca inteligente com filtros automáticos (self-querying).
+        
+        Exemplos de consultas suportadas:
+        - "artigos de machine learning publicados após 2020"
+        - "trabalhos em periódicos A1 sobre redes neurais"
+        - "pesquisas de João Silva em qualis melhor que B2"
+        - "artigos sobre COVID-19 publicados antes de 2022"
+        """
+        try:
+            result = self.self_query.process_query(query, max_results)
+            
+            # Formatar filtros para o frontend
+            formatted_filters = []
+            for filter_info in result["filters_applied"]:
+                operator_display = self._format_operator_display(filter_info["operator"])
+                field_display = self._format_field_display(filter_info["field"])
+                
+                formatted_filters.append({
+                    "field": field_display,
+                    "operator": operator_display,
+                    "value": filter_info["value"],
+                    "source": filter_info["source"]
+                })
+            
+            return {
+                "query": result["query"],
+                "clean_query": result["clean_query"],
+                "filters_applied": formatted_filters,
+                "total_found": result["total_found"],
+                "results": result["results"]
+            }
+        
+        except Exception as e:
+            logger.error(f"Erro na busca self-query: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                detail=f"Erro ao processar consulta: {str(e)}"
+            )
+    
+    def _format_operator_display(self, operator: str) -> str:
+        """Formata operador para exibição amigável."""
+        operator_map = {
+            "=": "Igual a",
+            ">": "Maior que",
+            ">=": "Maior ou igual a", 
+            "<": "Menor que",
+            "<=": "Menor ou igual a",
+            "contains": "Contém"
+        }
+        return operator_map.get(operator, operator)
+    
+    def _format_field_display(self, field: str) -> str:
+        """Formata nome do campo para exibição amigável."""
+        field_map = {
+            "year": "Ano",
+            "qualis": "Qualis",
+            "journal": "Periódico",
+            "author_name": "Autor",
+            "doi": "DOI"
+        }
+        return field_map.get(field, field)
         
 # Instância do controller e router exportável
 artigo_controller = ArtigoController()
