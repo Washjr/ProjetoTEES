@@ -22,7 +22,10 @@ os.makedirs(EMBEDDING_INDEX_DIR, exist_ok=True)
 
 class SemanticSearchService:
     def __init__(self):        
-        self.embedder = OpenAIEmbeddings(api_key=configuracoes.OPENAI_API_KEY)
+        self.embedder = OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            api_key=configuracoes.OPENAI_API_KEY
+        )
 
         # Carrega ou cria dois índices distintos em disco: pesquisadores e artigos
         self.indices = {
