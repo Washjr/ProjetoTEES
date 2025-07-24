@@ -3,61 +3,32 @@
     {
       "name": "year",
       "description": "Ano de publicação do artigo",
-      "type": "integer",
-      "article_field": "year",
-      "patterns": [
-        "(?:ano|year)\\s*([><=]+)\\s*(\\d{4})",
-        "(?:após|after|depois de)\\s*(\\d{4})",
-        "(?:antes de|before)\\s*(\\d{4})",
-        "(?:a partir de|from|desde)\\s*(\\d{4})",
-        "(?:até|until)\\s*(\\d{4})",
-        "em\\s*(\\d{4})"
-      ]
+      "type": "integer"
     },
     {
       "name": "qualis",
-      "description": "Classificação Qualis do periódico. Um dos valores: A1, A2, B1, B2, B3, B4, C",
-      "type": "string",
-      "article_field": "qualis",
-      "hierarchy": ["A1", "A2", "B1", "B2", "B3", "B4", "C"],
-      "patterns": [
-        "qualis\\s*([><=]*)\\s*([A-C][1-4]?)",
-        "(?:acima de|above)\\s*([A-C][1-4]?)",
-        "(?:abaixo de|below)\\s*([A-C][1-4]?)",
-        "(?:melhor que|better than)\\s*([A-C][1-4]?)",
-        "(?:pior que|worse than)\\s*([A-C][1-4]?)"
-      ]
+      "description": "Classificação Qualis do periódico. Um dos valores: ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C']",
+      "type": "string"
+    },
+    {
+      "name": "qualis_score",
+      "description": "Pontuação numérica do Qualis para comparações (A1=7, A2=6, A3=5, A4=4, B1=3, B2=2, B3=1, B4=1, C=0). Use este campo para filtros como 'B1 ou superior'",
+      "type": "integer"
     },
     {
       "name": "journal",
       "description": "Nome do periódico onde o artigo foi publicado",
-      "type": "string",
-      "article_field": "journal",
-      "patterns": [
-        "(?:periódico|journal|revista):\\s*\"?([^\"]+)\"?",
-        "(?:publicado em|published in)\\s*\"?([^\"]+)\"?"
-      ]
+      "type": "string"
     },
     {
       "name": "author_name",
       "description": "Nome do autor/pesquisador do artigo",
-      "type": "string",
-      "article_field": "authors",
-      "is_list": true,
-      "list_search_field": "name",
-      "patterns": [
-        "(?:autor|author):\\s*\"?([^\"]+)\"?",
-        "(?:escrito por|written by|by)\\s*\"?([^\"]+)\"?"
-      ]
+      "type": "string"
     },
     {
       "name": "doi",
       "description": "DOI (Digital Object Identifier) do artigo",
-      "type": "string",
-      "article_field": "doi",
-      "patterns": [
-        "doi:\\s*([^\\s]+)"
-      ]
+      "type": "string"
     }
   ],
   "document_content_description": "Artigos científicos com título, resumo e metadados de publicação acadêmica"

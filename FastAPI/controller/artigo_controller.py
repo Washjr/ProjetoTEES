@@ -3,9 +3,9 @@ import logging
 
 from dao.artigo_dao import ArtigoDAO
 from model.artigo import Artigo
-from service.langchain import LangchainService
+from service.langchain_service import LangchainService
 from service.semantic_search import SemanticSearchService
-from service.self_query_service import SelfQueryService
+from service.self_query_retriever import SelfQueryRetrieverService
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class ArtigoController:
         self.dao = ArtigoDAO()
         self.summarizer = LangchainService()
         self.semantic = SemanticSearchService()
-        self.self_query = SelfQueryService()
+        self.self_query = SelfQueryRetrieverService()
         self.router = APIRouter(prefix="/artigos", tags=["artigos"])
         self._register_routes()
 
@@ -66,8 +66,32 @@ class ArtigoController:
             summary="Busca inteligente com filtros automáticos",
             description=(
                 "Realiza busca combinando análise semântica e filtros extraídos "
-                "automaticamente da consulta usando patterns e processamento de linguagem natural. "
-                "Retorna artigos filtrados e os filtros aplicados."
+                "automaticamente da consulta usando SelfQueryRetriever do LangChain. "
+                "Retorna artigos relevantes com base na consulta em linguagem natural."
+            )
+        )
+
+        self.router.add_api_route(
+            "/self_query/test",
+            self.test_self_query_retriever,
+            response_model=None,
+            methods=["GET"],
+            summary="Testar SelfQueryRetriever",
+            description=(
+                "Endpoint para testar o SelfQueryRetriever e ver informações detalhadas "
+                "sobre o processamento da consulta, incluindo metadados e documentos retornados."
+            )
+        )
+
+        self.router.add_api_route(
+            "/self_query/filters",
+            self.get_available_filters,
+            response_model=None,
+            methods=["GET"],
+            summary="Listar filtros disponíveis",
+            description=(
+                "Retorna informações sobre os filtros/metadados disponíveis "
+                "para uso nas consultas self-query."
             )
         )
 
@@ -195,31 +219,48 @@ class ArtigoController:
         Exemplos de consultas suportadas:
         - "artigos de machine learning publicados após 2020"
         - "trabalhos em periódicos A1 sobre redes neurais"
-        - "pesquisas de João Silva em qualis melhor que B2"
+        - "pesquisas de João Silva em qualis melhor que B1"
         - "artigos sobre COVID-19 publicados antes de 2022"
         """
         try:
-            result = self.self_query.process_query(query, max_results)
+            # Inicializar o retriever se necessário
+            if self.self_query.retriever is None:
+                self.self_query.initialize_retriever()
             
-            # Formatar filtros para o frontend
-            formatted_filters = []
-            for filter_info in result["filters_applied"]:
-                operator_display = self._format_operator_display(filter_info["operator"])
-                field_display = self._format_field_display(filter_info["field"])
+            # Executar a consulta usando o SelfQueryRetriever
+            documents = self.self_query.query(query, k=max_results)
+            
+            # Converter documentos para o formato esperado pelo frontend
+            articles = []
+            for doc in documents:
+                # Extrair informações do conteúdo do documento
+                content_lines = doc.page_content.split('\n')
+                title = content_lines[0].replace('Título: ', '') if content_lines else ''
+                abstract = content_lines[1].replace('Resumo: ', '') if len(content_lines) > 1 else ''
                 
-                formatted_filters.append({
-                    "field": field_display,
-                    "operator": operator_display,
-                    "value": filter_info["value"],
-                    "source": filter_info["source"]
+                # Construir o objeto artigo
+                article_data = {
+                    "title": title,
+                    "abstract": abstract,
+                    "year": doc.metadata.get('year'),
+                    "qualis": doc.metadata.get('qualis', ''),
+                    "qualis_score": doc.metadata.get('qualis_score'),
+                    "journal": doc.metadata.get('journal', ''),
+                    "doi": doc.metadata.get('doi', ''),
+                    "author_name": doc.metadata.get('author_name', '')
+                }
+                
+                articles.append({
+                    "artigo": article_data,
+                    "score": 1.0,  # SelfQueryRetriever não retorna score de relevância
+                    "metadata": doc.metadata
                 })
             
             return {
-                "query": result["query"],
-                "clean_query": result["clean_query"],
-                "filters_applied": formatted_filters,
-                "total_found": result["total_found"],
-                "results": result["results"]
+                "query": query,
+                "method": "self_query_retriever",
+                "total_found": len(articles),
+                "results": articles
             }
         
         except Exception as e:
@@ -228,29 +269,108 @@ class ArtigoController:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
                 detail=f"Erro ao processar consulta: {str(e)}"
             )
-    
-    def _format_operator_display(self, operator: str) -> str:
-        """Formata operador para exibição amigável."""
-        operator_map = {
-            "=": "Igual a",
-            ">": "Maior que",
-            ">=": "Maior ou igual a", 
-            "<": "Menor que",
-            "<=": "Menor ou igual a",
-            "contains": "Contém"
-        }
-        return operator_map.get(operator, operator)
-    
-    def _format_field_display(self, field: str) -> str:
-        """Formata nome do campo para exibição amigável."""
-        field_map = {
-            "year": "Ano",
-            "qualis": "Qualis",
-            "journal": "Periódico",
-            "author_name": "Autor",
-            "doi": "DOI"
-        }
-        return field_map.get(field, field)
+
+    def test_self_query_retriever(
+        self,
+        query: str = Query(..., min_length=1, description="Consulta para teste do SelfQueryRetriever")
+    ):
+        """
+        Endpoint para testar o SelfQueryRetriever com informações detalhadas.
+        
+        Retorna informações sobre:
+        - Documentos encontrados
+        - Metadados processados
+        - AttributeInfo configurados
+        - Preview do conteúdo
+        """
+        try:
+            # Inicializar o retriever se necessário
+            if self.self_query.retriever is None:
+                self.self_query.initialize_retriever(limit_documents=20)  # Limite para teste
+            
+            # Executar consulta de teste
+            documents = self.self_query.query(query, k=5)
+            
+            # Preparar informações detalhadas
+            doc_info = []
+            for i, doc in enumerate(documents):
+                doc_info.append({
+                    "index": i,
+                    "content_preview": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
+                    "metadata": doc.metadata
+                })
+            
+            return {
+                "query": query,
+                "success": True,
+                "documents_found": len(documents),
+                "documents": doc_info,
+                "attribute_infos": [
+                    {
+                        "name": attr.name,
+                        "description": attr.description,
+                        "type": attr.type
+                    }
+                    for attr in self.self_query.attribute_infos
+                ],
+                "document_content_description": self.self_query.document_content_description
+            }
+        
+        except Exception as e:
+            logger.error(f"Erro no teste do SelfQueryRetriever: {e}")
+            return {
+                "query": query,
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+
+    def get_available_filters(self):
+        """
+        Endpoint para listar os filtros/metadados disponíveis para self-query.
+        
+        Retorna informações sobre os campos que podem ser usados em consultas
+        como ano, qualis, periódico, autor, etc.
+        """
+        try:
+            # Obter informações dos AttributeInfo configurados
+            filters = []
+            for attr_info in self.self_query.attribute_infos:
+                filter_info = {
+                    "name": attr_info.name,
+                    "description": attr_info.description,
+                    "type": attr_info.type
+                }
+                
+                # Adicionar valores possíveis para campos específicos
+                if attr_info.name == "qualis":
+                    filter_info["possible_values"] = ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C"]
+                elif attr_info.name == "qualis_score":
+                    filter_info["possible_values"] = "0-7 (A1=7, A2=6, A3=5, A4=4, B1=3, B2=2, B3=1, B4=1, C=0)"
+                elif attr_info.name == "year":
+                    filter_info["example_usage"] = "ano > 2020, publicado após 2019, antes de 2023"
+                
+                filters.append(filter_info)
+            
+            return {
+                "available_filters": filters,
+                "total_filters": len(filters),
+                "document_content_description": self.self_query.document_content_description,
+                "usage_examples": [
+                    "artigos de machine learning publicados após 2020",
+                    "trabalhos em periódicos A1 sobre redes neurais", 
+                    "pesquisas com qualis melhor que B1",
+                    "artigos do autor João Silva publicados em 2023",
+                    "trabalhos sobre COVID-19 antes de 2022"
+                ]
+            }
+        
+        except Exception as e:
+            logger.error(f"Erro ao listar filtros disponíveis: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Erro ao listar filtros: {str(e)}"
+            )
         
 # Instância do controller e router exportável
 artigo_controller = ArtigoController()
