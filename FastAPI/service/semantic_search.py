@@ -97,7 +97,7 @@ class SemanticSearchService:
         # Para IndexFlatIP (produto interno/cosseno), scores maiores = maior similaridade
         # Os scores já estão entre -1 e 1 (ou 0 e 1 para embeddings normalizados)
         # Threshold ajustado para similaridade por cosseno
-        SCORE_THRESHOLD = 0.6  # Valores típicos: 0.7-0.8 para boa similaridade
+        SCORE_THRESHOLD = 0.4 # Valores típicos: 0.7-0.8 para boa similaridade
 
         resultados_filtrados = []
         for doc, score in resultados:

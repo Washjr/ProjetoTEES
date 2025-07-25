@@ -546,12 +546,36 @@ class ArtigoController:
                 articles_finais = []
 
             # Reordena os artigos filtrados para priorizar os que vieram da busca por termos
-            ids_termos = {artigo.get('id') for artigo in resultados_termos if artigo.get('id')}
-            articles_termos = [a for a in articles_finais if a["artigo"].get("id") in ids_termos]
-            articles_semanticos = [a for a in articles_finais if a["artigo"].get("id") not in ids_termos]
+            # Criar set de IDs únicos para evitar duplicatas
+            ids_processados = set()
+            articles_finais_dedupe = []
+            
+            # Primeiro, adicionar artigos que vieram da busca por termos
+            for article in articles_finais:
+                artigo_id = (article["artigo"].get("id") or 
+                           article["artigo"].get("id_artigo") or 
+                           article["artigo"].get("doi") or
+                           f"{article['artigo'].get('title', '')}_{article['artigo'].get('author_name', '')}")
+                
+                if artigo_id not in ids_processados and "termos" in article.get("origem", []):
+                    articles_finais_dedupe.append(article)
+                    ids_processados.add(artigo_id)
+            
+            # Depois, adicionar artigos apenas semânticos não duplicados
+            articles_semanticos = []
+            for article in articles_finais:
+                artigo_id = (article["artigo"].get("id") or 
+                           article["artigo"].get("id_artigo") or 
+                           article["artigo"].get("doi") or
+                           f"{article['artigo'].get('title', '')}_{article['artigo'].get('author_name', '')}")
+                
+                if artigo_id not in ids_processados:
+                    articles_semanticos.append(article)
+                    ids_processados.add(artigo_id)
+            
             # Ordena os artigos semânticos por score decrescente
             articles_semanticos.sort(key=lambda x: x["score"], reverse=True)
-            articles_finais = articles_termos + articles_semanticos
+            articles_finais = articles_finais_dedupe + articles_semanticos
                 
             return {
                 "query": query,
@@ -586,7 +610,8 @@ class ArtigoController:
         
         # Processar resultados de termos
         for artigo in resultados_termos:
-            artigo_id = artigo.get('id')
+            # Tentar diferentes campos de ID
+            artigo_id = artigo.get('id') or artigo.get('id_artigo') or artigo.get('doi')
             if artigo_id:
                 artigos_combinados[artigo_id] = {
                     "artigo": artigo,
@@ -597,7 +622,8 @@ class ArtigoController:
         
         # Processar resultados semânticos
         for artigo, score in resultados_semanticos:
-            artigo_id = artigo.get('id')
+            # Tentar diferentes campos de ID
+            artigo_id = artigo.get('id') or artigo.get('id_artigo') or artigo.get('doi')
             if artigo_id:
                 if artigo_id in artigos_combinados:
                     # Artigo já existe, atualizar score semântico
@@ -606,6 +632,16 @@ class ArtigoController:
                 else:
                     # Novo artigo apenas da busca semântica
                     artigos_combinados[artigo_id] = {
+                        "artigo": artigo,
+                        "score_termos": 0.0,
+                        "score_semantico": score,
+                        "origem": ["semantica"]
+                    }
+            else:
+                # Se não tem ID, usar título + autor como chave única
+                fallback_key = f"{artigo.get('title', '')}_{artigo.get('author_name', '')}"
+                if fallback_key not in artigos_combinados:
+                    artigos_combinados[fallback_key] = {
                         "artigo": artigo,
                         "score_termos": 0.0,
                         "score_semantico": score,
@@ -658,8 +694,7 @@ class ArtigoController:
                 "qualis_score": self.self_query._qualis_to_numeric(qualis_str),
                 "journal": artigo.get('journal', ''),
                 "author_name": artigo.get('author_name', ''),
-                "doi": artigo.get('doi', ''),
-                "hybrid_score": resultado["score"]
+                "doi": artigo.get('doi', '')
             }
             
             # Filtrar valores None

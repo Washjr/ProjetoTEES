@@ -27,7 +27,7 @@
     },
     {
       "name": "author_name",
-      "description": "Nome do autor/pesquisador do artigo",
+      "description": "Nome do autor/pesquisador do artigo.",
       "type": "string"
     },
     {
