@@ -1,29 +1,6 @@
 from typing import List, Dict
-from langchain_openai import OpenAIEmbeddings
-import hashlib
+
 from .langchain_config import LangchainConfig
-
-
-class EmbeddingCache:
-    """Gerencia cache de embeddings para otimização de performance"""
-    
-    def __init__(self):
-        self._cache: Dict[str, List[float]] = {}
-    
-    def _get_text_hash(self, text: str) -> str:
-        """Gera hash MD5 do texto para usar como chave do cache"""
-        return hashlib.md5(text.encode('utf-8')).hexdigest()
-    
-    def get_or_create_embedding(self, text: str, embedder: OpenAIEmbeddings) -> List[float]:
-        """Obtém embedding do cache ou gera novo se não existir"""
-        text_hash = self._get_text_hash(text)
-        
-        if text_hash in self._cache:
-            return self._cache[text_hash]
-        
-        embedding = embedder.embed_query(text)
-        self._cache[text_hash] = embedding
-        return embedding
 
 
 class DocumentFormatter:

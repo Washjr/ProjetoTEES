@@ -3,10 +3,10 @@ from typing import List, Dict, Any, Tuple, Optional
 
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
 from langchain.retrievers.self_query.base import SelfQueryRetriever
 
 from dao.artigo_dao import ArtigoDAO
+from service.embedding import EmbeddingService
 from service.search.semantic_search import SemanticSearchService
 from service.search.self_query_retriever import SelfQueryRetrieverService
 
@@ -21,6 +21,7 @@ class SelfQueryService:
     
     def __init__(self):
         self.dao = ArtigoDAO()
+        self.embedding_service = EmbeddingService()
         self.semantic = SemanticSearchService()
         self.self_query = SelfQueryRetrieverService()
 
@@ -515,7 +516,7 @@ class SelfQueryService:
             metadata = {
                 "year": artigo.get('year'),
                 "qualis": qualis_str,
-                "qualis_score": self.self_query._qualis_to_numeric(qualis_str),
+                "qualis_score": self._qualis_to_numeric(qualis_str),
                 "journal": artigo.get('journal', ''),
                 "author_name": artigo.get('author_name', ''),
                 "doi": artigo.get('doi', '')
@@ -540,11 +541,8 @@ class SelfQueryService:
             Retriever temporário ou None se erro
         """
         try:
-            # Usar embeddings do OpenAI
-            embeddings = OpenAIEmbeddings(
-                model="text-embedding-3-small",
-                api_key=self.self_query.api_key
-            )
+            # Usar embeddings do EmbeddingService
+            embeddings = self.embedding_service.embeddings_client
             
             # Criar vectorstore temporário em memória
             vectorstore_temp = Chroma.from_documents(
@@ -604,3 +602,19 @@ class SelfQueryService:
             })
         
         return articles
+
+    def _qualis_to_numeric(self, qualis: str) -> int:
+        """Converte classificação Qualis para valor numérico para comparações."""
+        qualis_map = {
+            'A1': 7,
+            'A2': 6,
+            'A3': 5,
+            'A4': 4,
+            'B1': 3,
+            'B2': 2,
+            'B3': 1,
+            'B4': 1,
+            'C': 0,
+            '': 0
+        }
+        return qualis_map.get(qualis.upper(), 0)

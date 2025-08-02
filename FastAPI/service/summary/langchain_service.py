@@ -1,15 +1,22 @@
-from typing import List, Dict
-from langchain_openai import OpenAI, OpenAIEmbeddings
-from langchain.text_splitter import CharacterTextSplitter
 import logging
-from config import configuracoes
+from typing import List, Dict
 
-# Importar módulos refatorados
+from langchain.text_splitter import CharacterTextSplitter
+from langchain_openai import OpenAI
+
+from config import configuracoes
+from service.embedding import EmbeddingService
 from .langchain_config import LangchainConfig, TemplateManager
-from .langchain_formatters import EmbeddingCache, DocumentFormatter
+from .langchain_formatters import DocumentFormatter
+from .langchain_generators import ContentGenerator
 from .langchain_processors import ChunkProcessor
 from .langchain_filters import SimilarityFilter
-from .langchain_generators import ContentGenerator
+
+LLM_TEMPERATURE = 0.3
+LLM_MODEL = "gpt-3.5-turbo-instruct"
+LLM_MAX_TOKENS = 500
+TEXT_SPLITTER_CHUNK_SIZE = 3000
+TEXT_SPLITTER_CHUNK_OVERLAP = 50
 
 logger = logging.getLogger(__name__)
 
@@ -21,22 +28,21 @@ class LangchainService:
         self.config = LangchainConfig()
         self._validate_api_key()
 
-        # Inicializar componentes
         self.template_manager = TemplateManager()
-        self.embedding_cache = EmbeddingCache()
+        self.embedding_service = EmbeddingService()
         self.formatter = DocumentFormatter(self.config)
         self.chunk_processor = ChunkProcessor(self.config)
 
-        # Inicializar APIs
         self.llm = self._create_llm()
-        self.embedder = self._create_embedder()
-        self.splitter = CharacterTextSplitter(chunk_size=3000, chunk_overlap=50)
+        self.splitter = CharacterTextSplitter(
+            chunk_size=TEXT_SPLITTER_CHUNK_SIZE, 
+            chunk_overlap=TEXT_SPLITTER_CHUNK_OVERLAP
+        )
 
-        # Inicializar filtro e gerador
-        self.similarity_filter = SimilarityFilter(self.config, self.embedding_cache)
+        self.similarity_filter = SimilarityFilter(self.config, self.embedding_service)
         self.content_generator = ContentGenerator(self.llm, self.template_manager)
 
-    def _validate_api_key(self):
+    def _validate_api_key(self) -> None:
         """Valida se a API key está configurada"""
         api_key = configuracoes.OPENAI_API_KEY
         if not api_key:
@@ -47,14 +53,10 @@ class LangchainService:
         """Cria instância do LLM"""
         return OpenAI(
             api_key=self.api_key,
-            temperature=0.3,
-            model_name="gpt-3.5-turbo-instruct",
-            max_tokens=500,
+            temperature=LLM_TEMPERATURE,
+            model_name=LLM_MODEL,
+            max_tokens=LLM_MAX_TOKENS,
         )
-
-    def _create_embedder(self) -> OpenAIEmbeddings:
-        """Cria instância do embedder"""
-        return OpenAIEmbeddings(model="text-embedding-3-small", api_key=self.api_key)
 
     def _should_use_chunking(self, user_query: str) -> bool:
         """Determina se deve usar chunking baseado na query"""
@@ -74,7 +76,7 @@ class LangchainService:
             user_query,
             documentos,
             tipo,
-            self.embedder,
+            self.embedding_service,
             self.formatter,
             self.chunk_processor,
             max_chunks=8,
@@ -99,7 +101,7 @@ class LangchainService:
                 user_query,
                 documentos,
                 tipo,
-                self.embedder,
+                self.embedding_service,
                 self.formatter,
                 max_docs=self.config.MAX_DOCS_FOR_SUMMARY,
             )
@@ -235,7 +237,7 @@ class LangchainService:
             user_query,
             documentos,
             doc_type,
-            self.embedder,
+            self.embedding_service,
             self.formatter,
             self.chunk_processor,
             max_chunks=6,
@@ -268,7 +270,7 @@ class LangchainService:
                 user_query,
                 documentos,
                 doc_type,
-                self.embedder,
+                self.embedding_service,
                 self.formatter,
                 max_docs=self.config.MAX_PRODUCOES_FOR_TAGS,
             )

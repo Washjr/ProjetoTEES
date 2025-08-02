@@ -1,29 +1,33 @@
+import hashlib
 import json
+import logging
 import os
 import pickle
-import hashlib
-import logging
-from typing import List, Dict, Any, Optional
-from pathlib import Path
-
 import sys
+from pathlib import Path
+from typing import List, Dict, Any, Optional
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from dao.artigo_dao import ArtigoDAO
-
-from langchain.chains.query_constructor.schema import AttributeInfo
-from langchain.retrievers.self_query.base import SelfQueryRetriever
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_chroma import Chroma
-from langchain_core.documents import Document
-from langchain_community.query_constructors.chroma import ChromaTranslator
-
-logger = logging.getLogger(__name__)
 
 from langchain.chains.query_constructor.base import (
     StructuredQueryOutputParser,
     get_query_constructor_prompt,
 )
+from langchain.chains.query_constructor.schema import AttributeInfo
+from langchain.retrievers.self_query.base import SelfQueryRetriever
+from langchain_chroma import Chroma
+from langchain_community.query_constructors.chroma import ChromaTranslator
+from langchain_core.documents import Document
+from langchain_openai import ChatOpenAI
+
+from dao.artigo_dao import ArtigoDAO
+from service.embedding import EmbeddingService
+
+CACHE_DIR_DEFAULT = "./embeddings_cache"
+LLM_MODEL = "gpt-3.5-turbo"
+LLM_TEMPERATURE = 0
+
+logger = logging.getLogger(__name__)
 
 class SelfQueryRetrieverService:
     """
@@ -31,7 +35,7 @@ class SelfQueryRetrieverService:
     Implementa cache para embeddings para otimizar performance.
     """
     
-    def __init__(self, cache_dir: str = "./embeddings_cache"):
+    def __init__(self, cache_dir: str = CACHE_DIR_DEFAULT):
         """
         Inicializa o serviço de Self Query Retriever.
         
@@ -42,27 +46,17 @@ class SelfQueryRetrieverService:
         self.cache_dir.mkdir(exist_ok=True)
         
         self.artigo_dao = ArtigoDAO()
+        self.embedding_service = EmbeddingService()
         self.metadata_config = self._load_metadata_config()
-
-        self.api_key = os.getenv("OPENAI_API_KEY_IKEDA")
         
-        # Configurar LLM
         self.llm = ChatOpenAI(
-            temperature=0,
-            openai_api_key=self.api_key,
-            model="gpt-3.5-turbo"
+            temperature=LLM_TEMPERATURE,
+            openai_api_key=self.embedding_service.embeddings_client.openai_api_key,
+            model=LLM_MODEL
         )
         
-        # Configurar embeddings
-        self.embeddings = OpenAIEmbeddings(
-            model="text-embedding-3-small",
-            openai_api_key=self.api_key,
-        )
-        
-        # Criar AttributeInfo objects baseados na configuração
         self.attribute_infos = self._build_attribute_infos()
         
-        # Descrição do conteúdo dos documentos
         self.document_content_description = self.metadata_config.get(
             "document_content_description", 
             "Artigos científicos com título, resumo e metadados de publicação acadêmica"
@@ -75,7 +69,6 @@ class SelfQueryRetrieverService:
         output_parser = StructuredQueryOutputParser.from_components()
         self.query_constructor = prompt | self.llm | output_parser
         
-        # Inicializar o retriever
         self.retriever = None
         self._vectorstore = None
     
@@ -175,7 +168,7 @@ class SelfQueryRetrieverService:
             # Carregar vectorstore do Chroma
             vectorstore = Chroma(
                 persist_directory=vectorstore_path,
-                embedding_function=self.embeddings
+                embedding_function=self.embedding_service.embeddings_client
             )
             
             logger.info(f"Vectorstore carregado do cache: {cache_file}")
@@ -254,7 +247,7 @@ class SelfQueryRetrieverService:
         
         vectorstore = Chroma.from_documents(
             documents=documents,
-            embedding=self.embeddings,
+            embedding=self.embedding_service.embeddings_client,
             persist_directory=vectorstore_path
         )
         

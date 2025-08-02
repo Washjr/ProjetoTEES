@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from controller.artigo_controller import artigo_router
+from controller.embedding_router import embedding_router
 from controller.instituicao_controller import instituicao_router
 from controller.livro_controller import livro_router
 from controller.patente_controller import patente_router
@@ -19,6 +20,7 @@ from controller.software_controller import software_router
 from dao.artigo_dao import ArtigoDAO
 from dao.pesquisador_dao import PesquisadorDAO
 from banco.conexao_db import Conexao
+from service.embedding import EmbeddingService
 from service.search.semantic_search import SemanticSearchService
 
 # Configuração de logging
@@ -34,6 +36,11 @@ async def lifespan(app: FastAPI):
 
     ArtigoDAO().sincronizar_resumos()
     PesquisadorDAO().sincronizar_fotos()
+    
+    embedding_service = EmbeddingService()
+    embedding_stats = embedding_service.update_all_article_embeddings()
+    logging.info(f"Embeddings atualizados: {embedding_stats}")
+    
     SemanticSearchService().index_all()
 
     yield
@@ -58,6 +65,7 @@ app.add_middleware(
 
 # Registro dos routers
 app.include_router(artigo_router)
+app.include_router(embedding_router)
 app.include_router(instituicao_router)
 app.include_router(livro_router)
 app.include_router(patente_router)

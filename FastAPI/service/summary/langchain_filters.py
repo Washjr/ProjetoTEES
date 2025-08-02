@@ -1,10 +1,12 @@
+import logging
 from typing import List, Dict, Optional
-from langchain_openai import OpenAIEmbeddings
+
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-import logging
+
+from service.embedding import EmbeddingService
 from .langchain_config import LangchainConfig
-from .langchain_formatters import EmbeddingCache, DocumentFormatter
+from .langchain_formatters import DocumentFormatter
 from .langchain_processors import ChunkProcessor
 
 logger = logging.getLogger(__name__)
@@ -13,12 +15,12 @@ logger = logging.getLogger(__name__)
 class SimilarityFilter:
     """Responsável por filtrar conteúdo baseado em similaridade"""
     
-    def __init__(self, config: LangchainConfig, embedding_cache: EmbeddingCache):
+    def __init__(self, config: LangchainConfig, embedding_service: EmbeddingService):
         self.config = config
-        self.embedding_cache = embedding_cache
+        self.embedding_service = embedding_service
     
     def filter_relevant_chunks(self, user_query: str, documentos: List[Dict], 
-                             doc_type: str, embedder: OpenAIEmbeddings,
+                             doc_type: str, embedding_service: EmbeddingService,
                              formatter: DocumentFormatter, 
                              chunk_processor: ChunkProcessor,
                              max_chunks: Optional[int] = None) -> List[Dict]:
@@ -29,13 +31,13 @@ class SimilarityFilter:
             return documentos
         
         try:
-            query_embedding = self.embedding_cache.get_or_create_embedding(user_query, embedder)
+            query_embedding = embedding_service.generate_embedding(user_query)
             all_chunks = self._create_all_chunks(documentos, doc_type, formatter, chunk_processor)
             
             if not all_chunks:
                 return documentos
             
-            relevant_chunks = self._find_most_similar_chunks(query_embedding, all_chunks, embedder, max_chunks)
+            relevant_chunks = self._find_most_similar_chunks(query_embedding, all_chunks, embedding_service, max_chunks)
             
             logger.info(f"Filtrados {len(relevant_chunks)} chunks mais relevantes de {len(all_chunks)} totais")
             return relevant_chunks
@@ -45,7 +47,7 @@ class SimilarityFilter:
             return documentos
     
     def filter_relevant_documents(self, user_query: str, documentos: List[Dict], 
-                                doc_type: str, embedder: OpenAIEmbeddings,
+                                doc_type: str, embedding_service: EmbeddingService,
                                 formatter: DocumentFormatter,
                                 max_docs: Optional[int] = None) -> List[Dict]:
         """Filtra documentos mais relevantes usando embeddings"""
@@ -55,9 +57,12 @@ class SimilarityFilter:
             return documentos[:max_docs]
         
         try:
-            query_embedding = embedder.embed_query(user_query)
+            query_embedding = embedding_service.generate_embedding(user_query)
             doc_texts = [formatter.format_for_display(doc, doc_type) for doc in documentos]
-            doc_embeddings = embedder.embed_documents(doc_texts)
+            
+            doc_embeddings = []
+            for text in doc_texts:
+                doc_embeddings.append(embedding_service.generate_embedding(text))
             
             similarities = self._calculate_similarities(query_embedding, doc_embeddings)
             relevant_docs = self._get_top_documents(documentos, similarities, max_docs)
@@ -88,27 +93,23 @@ class SimilarityFilter:
     
     def _find_most_similar_chunks(self, query_embedding: List[float], 
                                  all_chunks: List[Dict], 
-                                 embedder: OpenAIEmbeddings,
+                                 embedding_service: EmbeddingService,
                                  max_chunks: int) -> List[Dict]:
         """Encontra os chunks mais similares à query"""
-        chunk_embeddings = [
-            self.embedding_cache.get_or_create_embedding(chunk['text'], embedder)
-            for chunk in all_chunks
-        ]
+        chunk_embeddings = []
+        for chunk in all_chunks:
+            chunk_embeddings.append(embedding_service.generate_embedding(chunk['text']))
         
         similarities = self._calculate_similarities(query_embedding, chunk_embeddings)
         
-        # Filtrar por threshold
         chunk_similarity_pairs = [
             (chunk, sim) for chunk, sim in zip(all_chunks, similarities)
             if sim >= self.config.SIMILARITY_THRESHOLD
         ]
         
-        # Se não houver chunks acima do threshold, usar todos
         if not chunk_similarity_pairs:
             chunk_similarity_pairs = list(zip(all_chunks, similarities))
         
-        # Ordenar por relevância e pegar os top
         chunk_similarity_pairs.sort(key=lambda x: x[1], reverse=True)
         return [chunk for chunk, _ in chunk_similarity_pairs[:max_chunks]]
     
