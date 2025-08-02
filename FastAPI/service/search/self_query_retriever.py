@@ -1,4 +1,3 @@
-from importlib import metadata
 import json
 import os
 import pickle
@@ -363,28 +362,3 @@ class SelfQueryRetrieverService:
                 logger.info("Cache limpo com sucesso")
         except Exception as e:
             logger.error(f"Erro ao limpar cache: {e}")
-
-
-# Exemplo de uso
-if __name__ == "__main__":
-    # Configurar logging
-    logging.basicConfig(level=logging.INFO)
-    
-    # Criar instância do serviço
-    service = SelfQueryRetrieverService()
-    
-    # Inicializar com poucos documentos para teste
-    service.initialize_retriever()
-    
-    # Exemplos de consultas
-    queries = [
-        "Robótica com qualis A4 ou superior",
-    ]
-    
-    for query in queries:
-        print(f"\nConsulta: {query}")
-        results = service.query(query, k=3)
-        
-        for i, doc in enumerate(results, 1):
-            print(f"\n{i}. {doc.page_content[:100]}...")
-            print(f"   Metadados: {doc.metadata}")

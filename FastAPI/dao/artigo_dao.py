@@ -4,7 +4,7 @@ from psycopg2 import IntegrityError
 
 from banco.conexao_db import Conexao
 from model.artigo import Artigo
-from service.openalex import buscar_resumo_openalex
+from service.utils.openalex import buscar_resumo_openalex
 
 logger = logging.getLogger(__name__)
 

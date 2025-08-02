@@ -5,8 +5,8 @@ import logging
 
 from dao.pesquisador_dao import PesquisadorDAO
 from model.pesquisador import Pesquisador
-from service.langchain_service import LangchainService
-from service.semantic_search import SemanticSearchService
+from service.summary.langchain_service import LangchainService
+from service.search.semantic_search import SemanticSearchService
 
 logger = logging.getLogger(__name__)
 

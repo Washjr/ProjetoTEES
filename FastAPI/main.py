@@ -13,12 +13,13 @@ from controller.livro_controller import livro_router
 from controller.patente_controller import patente_router
 from controller.periodico_controller import periodico_router
 from controller.pesquisador_controller import pesquisador_router
+from controller.selfquery_controller import selfquery_router
 from controller.software_controller import software_router
 
 from dao.artigo_dao import ArtigoDAO
 from dao.pesquisador_dao import PesquisadorDAO
 from banco.conexao_db import Conexao
-from service.semantic_search import SemanticSearchService
+from service.search.semantic_search import SemanticSearchService
 
 # Configuração de logging
 logging.basicConfig(
@@ -62,6 +63,7 @@ app.include_router(livro_router)
 app.include_router(patente_router)
 app.include_router(periodico_router)
 app.include_router(pesquisador_router)
+app.include_router(selfquery_router)
 app.include_router(software_router)
 
 # Montagem de arquivos estáticos (HTML, CSS, JS, etc.)

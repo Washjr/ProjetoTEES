@@ -5,7 +5,7 @@ from psycopg2 import IntegrityError
 
 from banco.conexao_db import Conexao
 from model.pesquisador import Pesquisador
-from service.foto_lattes import buscar_codigo_lattes, baixar_foto_pesquisador
+from service.utils.foto_lattes import buscar_codigo_lattes, baixar_foto_pesquisador
 from config import configuracoes
 
 logger = logging.getLogger(__name__)

@@ -12,7 +12,6 @@ from config import configuracoes
 from dao.artigo_dao import ArtigoDAO
 from dao.pesquisador_dao import PesquisadorDAO
 
-
 logger = logging.getLogger(__name__)
 
 # Diretório comum para todos os índices semânticos
