@@ -2,7 +2,6 @@ import hashlib
 import json
 import logging
 import os
-import pickle
 import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -15,15 +14,17 @@ from langchain.chains.query_constructor.base import (
 )
 from langchain.chains.query_constructor.schema import AttributeInfo
 from langchain.retrievers.self_query.base import SelfQueryRetriever
-from langchain_chroma import Chroma
-from langchain_community.query_constructors.chroma import ChromaTranslator
+from langchain_community.vectorstores import PGVector
+from langchain_community.query_constructors.pgvector import PGVectorTranslator
 from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
 
 from dao.artigo_dao import ArtigoDAO
 from service.embedding import EmbeddingService
+from service.search.dto import ArticleDocumentDTO
+from config import configuracoes
 
-CACHE_DIR_DEFAULT = "./embeddings_cache"
+COLLECTION_NAME = "artigo"
 LLM_MODEL = "gpt-3.5-turbo"
 LLM_TEMPERATURE = 0
 
@@ -31,19 +32,20 @@ logger = logging.getLogger(__name__)
 
 class SelfQueryRetrieverService:
     """
-    Serviço para realizar busca usando SelfQueryRetriever baseado no LangChain.
-    Implementa cache para embeddings para otimizar performance.
+    Serviço para realizar busca usando SelfQueryRetriever baseado no PGVector.
+    Usa embeddings já armazenados na coluna embedding da tabela artigo.
     """
     
-    def __init__(self, cache_dir: str = CACHE_DIR_DEFAULT):
+    def __init__(self, connection_string: str = None, collection_name: str = COLLECTION_NAME):
         """
-        Inicializa o serviço de Self Query Retriever.
+        Inicializa o serviço de Self Query Retriever com PGVector.
         
         Args:
-            cache_dir: Diretório onde os embeddings serão armazenados em cache
+            connection_string: String de conexão PostgreSQL (opcional, usa configurações se None)
+            collection_name: Nome da coleção no PGVector
         """
-        self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(exist_ok=True)
+        self.connection_string = connection_string or self._get_connection_string()
+        self.collection_name = collection_name
         
         self.artigo_dao = ArtigoDAO()
         self.embedding_service = EmbeddingService()
@@ -71,6 +73,17 @@ class SelfQueryRetrieverService:
         
         self.retriever = None
         self._vectorstore = None
+    
+    def _get_connection_string(self) -> str:
+        """Obtém a string de conexão usando as configurações da classe Conexao."""
+        try:
+            # Usar as mesmas configurações da classe Conexao
+            return (f"postgresql://{configuracoes.DB_USER}:{configuracoes.DB_PASS}@"
+                   f"{configuracoes.DB_HOST}:{configuracoes.DB_PORT}/{configuracoes.DB_NAME}")
+        except AttributeError as e:
+            logger.error(f"Erro ao acessar configurações do banco: {e}")
+            # Fallback para configuração padrão
+            return "postgresql://postgres:postgres@localhost:5432/postgres"
     
     def _load_metadata_config(self) -> Dict[str, Any]:
         """Carrega configuração de metadados do arquivo JSON."""
@@ -116,149 +129,96 @@ class SelfQueryRetrieverService:
             attribute_infos.append(attr_info)
         
         return attribute_infos
-    
-    def _get_cache_key(self, documents: List[Document]) -> str:
-        """Gera uma chave de cache baseada no conteúdo dos documentos."""
-        # Criar hash baseado no conteúdo e metadados dos documentos
-        content_hash = hashlib.md5()
-        for doc in documents:
-            content_hash.update(doc.page_content.encode('utf-8'))
-            content_hash.update(str(doc.metadata).encode('utf-8'))
         
-        return content_hash.hexdigest()
-    
-    def _save_vectorstore_cache(self, vectorstore: Chroma, cache_key: str):
-        """Salva o vectorstore em cache."""
-        try:
-            cache_file = self.cache_dir / f"vectorstore_{cache_key}.pkl"
-            
-            # Salvar usando pickle (para metadados e configuração)
-            cache_data = {
-                'vectorstore_path': f"./chroma_db_{cache_key}",
-                'attribute_infos': [attr.__dict__ for attr in self.attribute_infos],
-                'document_content_description': self.document_content_description
-            }
-            
-            with open(cache_file, 'wb') as f:
-                pickle.dump(cache_data, f)
-                
-            logger.info(f"Vectorstore salvo em cache: {cache_file}")
-            
-        except Exception as e:
-            logger.error(f"Erro ao salvar cache do vectorstore: {e}")
-    
-    def _load_vectorstore_cache(self, cache_key: str) -> Optional[Chroma]:
-        """Carrega o vectorstore do cache."""
-        try:
-            cache_file = self.cache_dir / f"vectorstore_{cache_key}.pkl"
-            
-            if not cache_file.exists():
-                return None
-            
-            with open(cache_file, 'rb') as f:
-                cache_data = pickle.load(f)
-            
-            vectorstore_path = cache_data['vectorstore_path']
-            
-            # Verificar se o diretório do Chroma existe
-            if not os.path.exists(vectorstore_path):
-                logger.warning(f"Diretório do vectorstore não encontrado: {vectorstore_path}")
-                return None
-            
-            # Carregar vectorstore do Chroma
-            vectorstore = Chroma(
-                persist_directory=vectorstore_path,
-                embedding_function=self.embedding_service.embeddings_client
-            )
-            
-            logger.info(f"Vectorstore carregado do cache: {cache_file}")
-            return vectorstore
-            
-        except Exception as e:
-            logger.error(f"Erro ao carregar cache do vectorstore: {e}")
-            return None
-    
-    def _qualis_to_numeric(self, qualis: str) -> int:
-        """Converte classificação Qualis para valor numérico para comparações."""
-        qualis_map = {
-            'A1': 9,
-            'A2': 8,
-            'A3': 7,
-            'A4': 6,
-            'B1': 5,
-            'B2': 4,
-            'B3': 3,
-            'B4': 2,
-            'C': 1,
-            '': 0
-        }
-        return qualis_map.get(qualis.upper(), 0)
-    
     def _create_documents_from_artigos(self, limit: Optional[int] = None) -> List[Document]:
-        """Cria documentos a partir dos artigos do banco de dados."""
+        """Cria documentos a partir dos artigos do banco de dados usando DTO."""
         try:
-            artigos = self.artigo_dao.listar_artigos()
+            # Buscar artigos que já possuem embeddings
+            artigos = self.artigo_dao.listar_artigos_com_embeddings()
+            
+            if not artigos:
+                logger.warning("Nenhum artigo com embeddings encontrado")
+                return []
             
             if limit:
                 artigos = artigos[:limit]
             
-            documents = []
+            # Usar DTO para conversão
+            documents = ArticleDocumentDTO.artigos_to_documents(artigos)
             
-            for artigo in artigos:
-                # Criar conteúdo do documento
-                title = artigo.get('title', '') or ''
-                abstract = artigo.get('abstract', '') or ''
-                content = f"Título: {title}\nResumo: {abstract}"
-                
-                # Criar metadados compatíveis com AttributeInfo
-                qualis_str = artigo.get('qualis', '') or ''
-                metadata = {
-                    "year": artigo.get('year'),
-                    "qualis": qualis_str,
-                    "qualis_score": self._qualis_to_numeric(qualis_str),
-                    "journal": artigo.get('journal', ''),
-                    "author_name": artigo.get('authors', [{}])[0].get('name', '') if artigo.get('authors') else '',
-                    "doi": artigo.get('doi', '')
-                }
-                
-                # Filtrar valores None dos metadados
-                metadata = {k: v for k, v in metadata.items() if v is not None}
-                
-                doc = Document(page_content=content, metadata=metadata)
-                documents.append(doc)
-            
-            logger.info(f"Criados {len(documents)} documentos a partir dos artigos")
+            logger.info(f"Criados {len(documents)} documentos a partir dos artigos com embeddings")
             return documents
             
         except Exception as e:
             logger.error(f"Erro ao criar documentos: {e}")
             return []
     
-    def _setup_vectorstore(self, documents: List[Document], cache_key: str) -> Chroma:
-        """Configura o vectorstore com cache."""
-        # Tentar carregar do cache primeiro
-        cached_vectorstore = self._load_vectorstore_cache(cache_key)
-        if cached_vectorstore is not None:
-            return cached_vectorstore
+    def _setup_vectorstore(self, documents: List[Document], cache_key: str) -> PGVector:
+        """Configura o vectorstore com PGVector usando embeddings existentes."""
+        logger.info("Criando vectorstore no PGVector usando embeddings existentes da tabela artigo...")
         
-        # Criar novo vectorstore
-        logger.info("Criando novo vectorstore...")
-        vectorstore_path = f"./chroma_db_{cache_key}"
-        
-        vectorstore = Chroma.from_documents(
-            documents=documents,
-            embedding=self.embedding_service.embeddings_client,
-            persist_directory=vectorstore_path
-        )
-        
-        # Salvar em cache
-        self._save_vectorstore_cache(vectorstore, cache_key)
-        
-        return vectorstore
+        try:
+            # Conectar diretamente à tabela artigo existente usando PGVector
+            vectorstore = PGVector(
+                connection_string=self.connection_string,
+                embedding_function=self.embedding_service.embeddings_client,
+                collection_name=self.collection_name,  # "artigo"
+            )
+            
+            # Verificar se precisa popular os dados
+            try:
+                # Tentar fazer uma busca para verificar se já tem dados
+                test_results = vectorstore.similarity_search("test", k=1)
+                if len(test_results) == 0:
+                    logger.info("Tabela existe mas parece estar vazia, populando com dados dos artigos...")
+                    self._populate_vectorstore_from_artigos(vectorstore, documents)
+                else:
+                    logger.info(f"Vectorstore já contém {len(test_results)} documentos (teste)")
+            except Exception as e:
+                logger.info(f"Criando novo vectorstore com dados dos artigos: {e}")
+                self._populate_vectorstore_from_artigos(vectorstore, documents)
+            
+            logger.info("Vectorstore configurado para usar embeddings da tabela artigo")
+            return vectorstore
+            
+        except Exception as e:
+            logger.error(f"Erro ao configurar vectorstore: {e}")
+            raise
+
+    def _populate_vectorstore_from_artigos(self, vectorstore: PGVector, documents: List[Document]):
+        """Popula o vectorstore usando embeddings já existentes da tabela artigo."""
+        try:
+            # Buscar artigos que já possuem embeddings
+            artigos = self.artigo_dao.listar_artigos_com_embeddings()
+            
+            if not artigos:
+                raise ValueError("Nenhum artigo com embeddings encontrado na tabela artigo")
+            
+            logger.info(f"Encontrados {len(artigos)} artigos com embeddings")
+            
+            # Usar DTO para converter artigos para documentos
+            documents_to_add = ArticleDocumentDTO.artigos_to_documents(artigos)
+            
+            # Preparar dados para o vectorstore
+            texts = [doc.page_content for doc in documents_to_add]
+            metadatas = [doc.metadata for doc in documents_to_add]
+            
+            # Adicionar documentos ao vectorstore
+            # Para PGVector da langchain_community, usamos add_texts
+            vectorstore.add_texts(
+                texts=texts,
+                metadatas=metadatas
+            )
+            
+            logger.info(f"Adicionados {len(texts)} documentos ao vectorstore")
+            
+        except Exception as e:
+            logger.error(f"Erro ao popular vectorstore: {e}")
+            raise
     
     def initialize_retriever(self, limit_documents: Optional[int] = None) -> SelfQueryRetriever:
         """
-        Inicializa o SelfQueryRetriever com cache para embeddings.
+        Inicializa o SelfQueryRetriever usando embeddings da tabela artigo.
         
         Args:
             limit_documents: Limite de documentos para processar (útil para testes)
@@ -267,16 +227,16 @@ class SelfQueryRetrieverService:
             SelfQueryRetriever configurado
         """
         try:
-            # Criar documentos
-            documents = self._create_documents_from_artigos()
+            # Criar documentos (apenas para estrutura, embeddings vêm da tabela)
+            documents = self._create_documents_from_artigos(limit_documents)
             
             if not documents:
                 raise ValueError("Nenhum documento foi criado")
             
-            # Gerar chave de cache
-            cache_key = self._get_cache_key(documents)
+            # Gerar chave de cache simples
+            cache_key = "artigo_table"
             
-            # Configurar vectorstore com cache
+            # Configurar vectorstore usando embeddings da tabela artigo
             self._vectorstore = self._setup_vectorstore(documents, cache_key)
 
             # Criar SelfQueryRetriever
@@ -285,11 +245,11 @@ class SelfQueryRetrieverService:
                 document_contents=self.document_content_description,
                 metadata_field_info=self.attribute_infos,
                 vectorstore=self._vectorstore,
-                structured_query_translator=ChromaTranslator(),
+                structured_query_translator=PGVectorTranslator(),
                 verbose=True
             )
             
-            logger.info("SelfQueryRetriever inicializado com sucesso")
+            logger.info("SelfQueryRetriever inicializado usando embeddings da tabela artigo")
             return self.retriever
             
         except Exception as e:
@@ -340,18 +300,3 @@ class SelfQueryRetrieverService:
         except Exception as e:
             logger.error(f"Erro ao executar consulta: {e}")
             return []
-    
-    def get_retriever(self) -> Optional[SelfQueryRetriever]:
-        """Retorna o retriever atual."""
-        return self.retriever
-    
-    def clear_cache(self):
-        """Remove todos os arquivos de cache."""
-        try:
-            import shutil
-            if self.cache_dir.exists():
-                shutil.rmtree(self.cache_dir)
-                self.cache_dir.mkdir(exist_ok=True)
-                logger.info("Cache limpo com sucesso")
-        except Exception as e:
-            logger.error(f"Erro ao limpar cache: {e}")

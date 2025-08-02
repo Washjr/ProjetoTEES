@@ -419,3 +419,75 @@ class ArtigoDAO:
         except Exception as e:
             logger.exception("Erro ao buscar artigos com filtros")
             raise RuntimeError(f"Erro ao buscar artigos com filtros: {e}")
+
+    def listar_artigos_com_embeddings(self) -> List[Dict]:
+        """
+        Lista artigos que possuem embeddings na coluna embedding.
+        
+        Returns:
+            Lista de dicionários com dados dos artigos que possuem embeddings
+        """
+        sql = (
+            "SELECT "
+            "a.id_artigo as id, "
+            "a.nome as title, "
+            "per.nome as journal, "
+            "a.ano as year, "
+            "a.resumo as abstract, "
+            "a.doi, "
+            "per.qualis, "
+            "p.id_pesquisador as author_id, "
+            "p.nome as author_name "
+            "FROM artigo a "
+            "JOIN periodico per ON a.id_periodico = per.id_periodico "
+            "JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
+            "WHERE a.embedding IS NOT NULL "
+            "ORDER BY a.id_artigo"
+        )
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql)
+                linhas = cursor.fetchall()
+            
+            # Agrupar resultados por artigo para lidar com múltiplos autores
+            artigos_dict = {}
+            for linha in linhas:
+                (id_artigo, title, journal, year, abstract, doi, qualis, 
+                 author_id, author_name) = linha
+                
+                normalized_title = title.strip().lower()
+                normalized_journal = journal.strip().lower() if journal else ""
+                normalized_year = str(year).strip() if year else ""
+                normalized_doi = (doi.strip().lower() if doi else "")
+
+                key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
+
+                if key not in artigos_dict:
+                    artigos_dict[key] = {
+                        "id": str(id_artigo),
+                        "title": title,
+                        "journal": journal,
+                        "year": year,
+                        "abstract": abstract or "",
+                        "doi": doi,
+                        "qualis": qualis,
+                        "authors": []
+                    }
+                
+                # Adicionar autor se não existir
+                author_exists = any(
+                    author["id"] == str(author_id) 
+                    for author in artigos_dict[key]["authors"]
+                )
+                if not author_exists:
+                    artigos_dict[key]["authors"].append({
+                        "id": str(author_id),
+                        "name": author_name
+                    })
+            
+            logger.info(f"Encontrados {len(artigos_dict)} artigos com embeddings")
+            return list(artigos_dict.values())
+
+        except Exception as e:
+            logger.exception("Erro ao buscar artigos com embeddings")
+            raise RuntimeError(f"Erro ao buscar artigos com embeddings: {e}")

@@ -19,31 +19,6 @@ class SelfQueryController:
     def _register_routes(self):
         self.router.add_api_route(
             "/",
-            self.self_query_artigos,
-            response_model=None,
-            methods=["GET"],
-            summary="Busca inteligente com filtros automáticos",
-            description=(
-                "Realiza busca combinando análise semântica e filtros extraídos "
-                "automaticamente da consulta usando SelfQueryRetriever do LangChain. "
-                "Retorna artigos relevantes com base na consulta em linguagem natural."
-            )
-        )
-
-        self.router.add_api_route(
-            "/test",
-            self.test_self_query_retriever,
-            response_model=None,
-            methods=["GET"],
-            summary="Testar SelfQueryRetriever",
-            description=(
-                "Endpoint para testar o SelfQueryRetriever e ver informações detalhadas "
-                "sobre o processamento da consulta, incluindo metadados e documentos retornados."
-            )
-        )
-
-        self.router.add_api_route(
-            "/filters",
             self.get_available_filters,
             response_model=None,
             methods=["GET"],
@@ -78,45 +53,6 @@ class SelfQueryController:
                 "unificados e filtrados usando SelfQueryRetriever."
             )
         )
-
-    def self_query_artigos(
-        self,
-        query: str = Query(..., min_length=1, description="Consulta com filtros automáticos"),
-        max_results: int = Query(10, ge=1, le=50, description="Número máximo de resultados")
-    ):
-        """
-        Endpoint para busca inteligente com filtros automáticos (self-querying).
-        
-        Exemplos de consultas suportadas:
-        - "artigos de machine learning publicados após 2020"
-        - "trabalhos em periódicos A1 sobre redes neurais"
-        - "pesquisas de João Silva em qualis melhor que B1"
-        - "artigos sobre COVID-19 publicados antes de 2022"
-        """
-        try:
-            return self.service.buscar_artigos_self_query(query, max_results)
-        
-        except Exception as e:
-            logger.error(f"Erro na busca self-query: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-                detail=f"Erro ao processar consulta: {str(e)}"
-            )
-
-    def test_self_query_retriever(
-        self,
-        query: str = Query(..., min_length=1, description="Consulta para teste do SelfQueryRetriever")
-    ):
-        """
-        Endpoint para testar o SelfQueryRetriever com informações detalhadas.
-        
-        Retorna informações sobre:
-        - Documentos encontrados
-        - Metadados processados
-        - AttributeInfo configurados
-        - Preview do conteúdo
-        """
-        return self.service.testar_self_query_retriever(query)
 
     def get_available_filters(self):
         """

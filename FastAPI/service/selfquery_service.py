@@ -9,6 +9,7 @@ from dao.artigo_dao import ArtigoDAO
 from service.embedding import EmbeddingService
 from service.search.semantic_search import SemanticSearchService
 from service.search.self_query_retriever import SelfQueryRetrieverService
+from service.search.dto import ArticleDocumentDTO
 
 logger = logging.getLogger(__name__)
 
@@ -44,71 +45,16 @@ class SelfQueryService:
             # Executar a consulta usando o SelfQueryRetriever
             documents = self.self_query.query(query, k=max_results)
             
-            # Converter documentos para o formato esperado
-            articles = self._converter_documentos_para_artigos(documents)
-            
-            return {
-                "query": query,
-                "method": "self_query_retriever",
-                "total_found": len(articles),
-                "results": articles
-            }
+            # Usar DTO para formatação da resposta
+            return ArticleDocumentDTO.format_search_response(
+                query=query,
+                documents=documents,
+                method="self_query_retriever"
+            )
             
         except Exception as e:
             logger.error(f"Erro na busca self-query: {e}")
             raise RuntimeError(f"Erro ao processar consulta: {str(e)}")
-
-    def testar_self_query_retriever(self, query: str) -> Dict[str, Any]:
-        """
-        Testa o SelfQueryRetriever com informações detalhadas para debug.
-        
-        Args:
-            query: Consulta para teste
-            
-        Returns:
-            Informações detalhadas sobre o processamento
-        """
-        try:
-            # Inicializar o retriever se necessário
-            if self.self_query.retriever is None:
-                self.self_query.initialize_retriever(limit_documents=20)
-            
-            # Executar consulta de teste
-            documents = self.self_query.query(query, k=5)
-            
-            # Preparar informações detalhadas
-            doc_info = []
-            for i, doc in enumerate(documents):
-                doc_info.append({
-                    "index": i,
-                    "content_preview": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
-                    "metadata": doc.metadata
-                })
-            
-            return {
-                "query": query,
-                "success": True,
-                "documents_found": len(documents),
-                "documents": doc_info,
-                "attribute_infos": [
-                    {
-                        "name": attr.name,
-                        "description": attr.description,
-                        "type": attr.type
-                    }
-                    for attr in self.self_query.attribute_infos
-                ],
-                "document_content_description": self.self_query.document_content_description
-            }
-            
-        except Exception as e:
-            logger.error(f"Erro no teste do SelfQueryRetriever: {e}")
-            return {
-                "query": query,
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__
-            }
 
     def obter_filtros_disponiveis(self) -> Dict[str, Any]:
         """
@@ -256,6 +202,9 @@ class SelfQueryService:
                 query, 
                 max_results
             )
+
+            #print articles_finais 
+            logger.info(f"Resultados finais após filtros: {len(articles_finais)} artigos")
             
             # Passo 5: Reordenar resultados priorizando busca por termos
             articles_finais = self._reordenar_resultados(articles_finais)
@@ -280,43 +229,65 @@ class SelfQueryService:
             logger.error(f"Erro na busca híbrida: {e}")
             raise RuntimeError(f"Erro ao processar busca híbrida: {str(e)}")
 
-    def _converter_documentos_para_artigos(self, documents) -> List[Dict[str, Any]]:
+    def _create_temporary_retriever(self, documents: List[Document]) -> Optional[Any]:
         """
-        Converte documentos do retriever para formato de artigos.
+        Cria um retriever temporário com os documentos fornecidos.
         
         Args:
-            documents: Lista de documentos do LangChain
+            documents: Lista de documentos
             
+        Returns:
+            Retriever temporário ou None se erro
+        """
+        try:
+            embeddings = self.embedding_service.embeddings_client
+            
+            vectorstore_temp = Chroma.from_documents(
+                documents=documents,
+                embedding=embeddings,
+                persist_directory=None
+            )
+
+            retriever_temp = SelfQueryRetriever.from_llm(
+                llm=self.self_query.llm,
+                vectorstore=vectorstore_temp,
+                document_contents=self.self_query.document_content_description,
+                metadata_field_info=self.self_query.attribute_infos,
+                verbose=True,
+                enable_limit=True
+            )
+
+            return retriever_temp
+            
+        except Exception as e:
+            logger.error(f"Erro ao criar retriever temporário: {e}")
+            return None
+
+    def _format_combined_results_as_articles(self, resultados_combinados: List[Dict], max_results: int) -> List[Dict[str, Any]]:
+        """
+        Formata os resultados combinados como artigos para retorno na busca.
+        
+        Args:
+            resultados_combinados: Resultados combinados da busca
+            max_results: Máximo de resultados a retornar
+        
         Returns:
             Lista de artigos formatados
         """
-        articles = []
-        
-        for doc in documents:
-            # Extrair informações do conteúdo do documento
-            content_lines = doc.page_content.split('\n')
-            title = content_lines[0].replace('Título: ', '') if content_lines else ''
-            abstract = content_lines[1].replace('Resumo: ', '') if len(content_lines) > 1 else ''
-            
-            # Construir o objeto artigo
-            article_data = {
-                "title": title,
-                "abstract": abstract,
-                "year": doc.metadata.get('year'),
-                "qualis": doc.metadata.get('qualis', ''),
-                "qualis_score": doc.metadata.get('qualis_score'),
-                "journal": doc.metadata.get('journal', ''),
-                "doi": doc.metadata.get('doi', ''),
-                "author_name": doc.metadata.get('author_name', '')
+        return [
+            {
+                "artigo": resultado["artigo"],
+                "score": resultado["score"],
+                "metadata": {
+                    "year": resultado["artigo"].get("year"),
+                    "qualis": resultado["artigo"].get("qualis", ""),
+                    "journal": resultado["artigo"].get("journal", ""),
+                    "doi": resultado["artigo"].get("doi", ""),
+                    "author_name": resultado["artigo"].get("author_name", "")
+                }
             }
-            
-            articles.append({
-                "artigo": article_data,
-                "score": 1.0,  # SelfQueryRetriever não retorna score de relevância
-                "metadata": doc.metadata
-            })
-        
-        return articles
+            for resultado in resultados_combinados[:max_results]
+        ]
 
     def _combinar_resultados(
         self, 
@@ -417,32 +388,21 @@ class SelfQueryService:
             Lista de artigos filtrados
         """
         if resultados_combinados:
-            # Converter resultados para documentos
-            documents_filtrados = self._criar_documentos_temporarios(resultados_combinados)
+            # Usar DTO para converter resultados para documentos
+            documents_filtrados = ArticleDocumentDTO.combined_results_to_documents(resultados_combinados)
             
             # Criar retriever temporário
-            retriever_temp = self._criar_retriever_temporario(documents_filtrados)
+            retriever_temp = self._create_temporary_retriever(documents_filtrados)
+
+            retriever_temp.search_kwargs = {'k': max_results}
             
             # Aplicar filtros se existirem
             if filters and retriever_temp:
                 resultados_filtrados = retriever_temp.invoke(query)
-                return self._converter_documentos_para_artigos_hibrido(resultados_filtrados)
+                return ArticleDocumentDTO.documents_to_search_results(resultados_filtrados)
             else:
                 # Se não há filtros, usar resultados combinados diretamente
-                return [
-                    {
-                        "artigo": resultado["artigo"],
-                        "score": resultado["score"],
-                        "metadata": {
-                            "year": resultado["artigo"].get("year"),
-                            "qualis": resultado["artigo"].get("qualis", ""),
-                            "journal": resultado["artigo"].get("journal", ""),
-                            "doi": resultado["artigo"].get("doi", ""),
-                            "author_name": resultado["artigo"].get("author_name", "")
-                        }
-                    }
-                    for resultado in resultados_combinados[:max_results]
-                ]
+                return self._format_combined_results_as_articles(resultados_combinados, max_results)
         else:
             return []
 
@@ -490,131 +450,3 @@ class SelfQueryService:
         articles_semanticos.sort(key=lambda x: x["score"], reverse=True)
         
         return articles_finais_dedupe + articles_semanticos
-
-    def _criar_documentos_temporarios(self, resultados_combinados: List[Dict]) -> List:
-        """
-        Converte resultados combinados em documentos para retriever temporário.
-        
-        Args:
-            resultados_combinados: Resultados a converter
-            
-        Returns:
-            Lista de documentos LangChain
-        """
-        documents = []
-        
-        for resultado in resultados_combinados:
-            artigo = resultado["artigo"]
-            
-            # Criar conteúdo do documento
-            title = artigo.get('title', '') or ''
-            abstract = artigo.get('abstract', '') or ''
-            content = f"Título: {title}\nResumo: {abstract}"
-            
-            # Criar metadados
-            qualis_str = artigo.get('qualis', '') or ''
-            metadata = {
-                "year": artigo.get('year'),
-                "qualis": qualis_str,
-                "qualis_score": self._qualis_to_numeric(qualis_str),
-                "journal": artigo.get('journal', ''),
-                "author_name": artigo.get('author_name', ''),
-                "doi": artigo.get('doi', '')
-            }
-            
-            # Filtrar valores None
-            metadata = {k: v for k, v in metadata.items() if v is not None}
-            
-            doc = Document(page_content=content, metadata=metadata)
-            documents.append(doc)
-        
-        return documents
-
-    def _criar_retriever_temporario(self, documents: List) -> Optional[Any]:
-        """
-        Cria um retriever temporário com os documentos fornecidos.
-        
-        Args:
-            documents: Lista de documentos
-            
-        Returns:
-            Retriever temporário ou None se erro
-        """
-        try:
-            # Usar embeddings do EmbeddingService
-            embeddings = self.embedding_service.embeddings_client
-            
-            # Criar vectorstore temporário em memória
-            vectorstore_temp = Chroma.from_documents(
-                documents=documents,
-                embedding=embeddings,
-                persist_directory=None
-            )
-            
-            # Criar retriever temporário
-            retriever_temp = SelfQueryRetriever.from_llm(
-                llm=self.self_query.llm,
-                vectorstore=vectorstore_temp,
-                document_contents=self.self_query.document_content_description,
-                metadata_field_info=self.self_query.attribute_infos,
-                verbose=True
-            )
-            
-            return retriever_temp
-            
-        except Exception as e:
-            logger.error(f"Erro ao criar retriever temporário: {e}")
-            return None
-
-    def _converter_documentos_para_artigos_hibrido(self, documents: List) -> List[Dict[str, Any]]:
-        """
-        Converte documentos do retriever para formato de artigos (versão híbrida).
-        
-        Args:
-            documents: Lista de documentos
-            
-        Returns:
-            Lista de artigos formatados
-        """
-        articles = []
-        
-        for doc in documents:
-            # Extrair informações do conteúdo
-            content_lines = doc.page_content.split('\n')
-            title = content_lines[0].replace('Título: ', '') if content_lines else ''
-            abstract = content_lines[1].replace('Resumo: ', '') if len(content_lines) > 1 else ''
-            
-            # Construir objeto artigo
-            article_data = {
-                "title": title,
-                "abstract": abstract,
-                "year": doc.metadata.get('year'),
-                "qualis": doc.metadata.get('qualis', ''),
-                "journal": doc.metadata.get('journal', ''),
-                "doi": doc.metadata.get('doi', ''),
-                "author_name": doc.metadata.get('author_name', '')
-            }
-            
-            articles.append({
-                "artigo": article_data,
-                "score": doc.metadata.get('hybrid_score', 1.0),
-                "metadata": doc.metadata
-            })
-        
-        return articles
-
-    def _qualis_to_numeric(self, qualis: str) -> int:
-        """Converte classificação Qualis para valor numérico para comparações."""
-        qualis_map = {
-            'A1': 7,
-            'A2': 6,
-            'A3': 5,
-            'A4': 4,
-            'B1': 3,
-            'B2': 2,
-            'B3': 1,
-            'B4': 1,
-            'C': 0,
-            '': 0
-        }
-        return qualis_map.get(qualis.upper(), 0)
