@@ -5,8 +5,6 @@ import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-from langchain_chroma import Chroma
-
 from model.dto.artigo_busca_dto import ArtigoBuscaDTO
 from model.mapper.artigo_dto_mapper import ArtigoDTOMapper
 
@@ -19,7 +17,6 @@ from langchain.chains.query_constructor.base import (
 from langchain.chains.query_constructor.schema import AttributeInfo
 from langchain.retrievers.self_query.base import SelfQueryRetriever
 from langchain_community.vectorstores import PGVector
-from langchain_community.query_constructors.pgvector import PGVectorTranslator
 from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
 
@@ -124,7 +121,9 @@ class SelfQueryRetrieverService:
 
         return attribute_infos
 
-    def _create_vectorstore_with_embeddings(self, documents: List[Document]) -> PGVector:
+    def _create_vectorstore_with_embeddings(
+        self, documents: List[Document]
+    ) -> PGVector:
         """Configura o vectorstore com PGVector usando embeddings existentes."""
         logger.info(
             "Criando vectorstore no PGVector usando embeddings existentes da tabela artigo..."
@@ -237,9 +236,10 @@ class SelfQueryRetrieverService:
         return ArtigoDTOMapper.to_document_list(
             [ArtigoBuscaDTO.from_orm(artigo) for artigo in artigos]
         )
-        
+
     def create_temporary_retriever(
-        self, documents: List[Document]) -> Optional[SelfQueryRetriever]:
+        self, documents: List[Document]
+    ) -> Optional[SelfQueryRetriever]:
         """
         Cria um retriever temporário usando Chroma com os documentos fornecidos.
         Deve ser usado para consultas com self-query.
@@ -251,13 +251,7 @@ class SelfQueryRetrieverService:
             Optional[SelfQueryRetriever]: Um retriever temporário configurado com os documentos fornecidos, None se ocorrer um erro.
         """
         try:
-            embeddings = self.embedding_service.embeddings_client
-            
-            vectorstore_temp = Chroma.from_documents(
-                documents=documents,
-                embedding=embeddings,
-                persist_directory=None
-            )
+            vectorstore_temp = self._create_vectorstore_with_embeddings(documents)
 
             retriever_temp = SelfQueryRetriever.from_llm(
                 llm=self.llm,
@@ -265,10 +259,10 @@ class SelfQueryRetrieverService:
                 metadata_field_info=self.attribute_infos,
                 vectorstore=vectorstore_temp,
                 verbose=True,
-                enable_limit=True
+                enable_limit=True,
             )
             return retriever_temp
-        
+
         except Exception as e:
             logger.error(f"Erro ao criar retriever temporário: {e}")
             return None
