@@ -10,6 +10,8 @@ from service.embedding import EmbeddingService
 from service.search.semantic_search import SemanticSearchService
 from service.search.self_query_retriever import SelfQueryRetrieverService
 from service.search.dto import ArticleDocumentDTO
+import json
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -58,46 +60,20 @@ class SelfQueryService:
 
     def obter_filtros_disponiveis(self) -> Dict[str, Any]:
         """
-        Retorna informações sobre os filtros/metadados disponíveis para self-query.
+        Retorna informações sobre os filtros/metadados disponíveis para self-query,
+        diretamente do arquivo metadata_config.json.
         
         Returns:
             Informações sobre campos disponíveis para filtros
         """
+
         try:
-            # Obter informações dos AttributeInfo configurados
-            filters = []
-            for attr_info in self.self_query.attribute_infos:
-                filter_info = {
-                    "name": attr_info.name,
-                    "description": attr_info.description,
-                    "type": attr_info.type
-                }
-                
-                # Adicionar valores possíveis para campos específicos
-                if attr_info.name == "qualis":
-                    filter_info["possible_values"] = ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4", "C"]
-                elif attr_info.name == "qualis_score":
-                    filter_info["possible_values"] = "0-7 (A1=7, A2=6, A3=5, A4=4, B1=3, B2=2, B3=1, B4=1, C=0)"
-                elif attr_info.name == "year":
-                    filter_info["example_usage"] = "ano > 2020, publicado após 2019, antes de 2023"
-                
-                filters.append(filter_info)
-            
-            return {
-                "available_filters": filters,
-                "total_filters": len(filters),
-                "document_content_description": self.self_query.document_content_description,
-                "usage_examples": [
-                    "artigos de machine learning publicados após 2020",
-                    "trabalhos em periódicos A1 sobre redes neurais", 
-                    "pesquisas com qualis melhor que B1",
-                    "artigos do autor João Silva publicados em 2023",
-                    "trabalhos sobre COVID-19 antes de 2022"
-                ]
-            }
-            
+            config_path = os.path.join(os.path.dirname(__file__), "..", "metadata_config.json")
+            with open(config_path, "r", encoding="utf-8") as f:
+                metadata_config = json.load(f)
+            return metadata_config
         except Exception as e:
-            logger.error(f"Erro ao listar filtros disponíveis: {e}")
+            logger.error(f"Erro ao carregar metadata_config.json: {e}")
             raise RuntimeError(f"Erro ao listar filtros: {str(e)}")
 
     def debug_query_constructor(self, query: str) -> Dict[str, Any]:
@@ -202,16 +178,6 @@ class SelfQueryService:
                 query, 
                 max_results
             )
-
-            #print articles_finais 
-            logger.info(f"Resultados finais após filtros: {len(articles_finais)} artigos")
-            
-            # Debug: Verificar se scores semânticos estão sendo preservados
-            for i, article in enumerate(articles_finais[:3]):  # Log apenas os 3 primeiros
-                score_info = article.get("scores_detalhados", {})
-                logger.debug(f"Artigo {i+1}: score={article.get('score', 'N/A')}, "
-                           f"semantico={score_info.get('semantico', 'N/A')}, "
-                           f"termos={score_info.get('termos', 'N/A')}")
             
             # Passo 5: Reordenar resultados priorizando busca por termos
             articles_finais = self._reordenar_resultados(articles_finais)
@@ -236,7 +202,7 @@ class SelfQueryService:
             logger.error(f"Erro na busca híbrida: {e}")
             raise RuntimeError(f"Erro ao processar busca híbrida: {str(e)}")
 
-    def _create_temporary_retriever(self, documents: List[Document]) -> Optional[Any]:
+    def _create_temporary_retriever(self, documents: List[Document]) -> Optional[SelfQueryRetriever]:
         """
         Cria um retriever temporário com os documentos fornecidos.
         
@@ -400,23 +366,23 @@ class SelfQueryService:
         Returns:
             Lista de artigos filtrados
         """
-        if resultados_combinados:
-            # Usar DTO para converter resultados para documentos (preservando scores)
-            documents_filtrados = ArticleDocumentDTO.combined_results_to_documents(resultados_combinados)
-            
-            # Aplicar filtros se existirem
-            if filters and documents_filtrados:
-                # Criar retriever temporário
-                retriever_temp = self._create_temporary_retriever(documents_filtrados)
-                retriever_temp.search_kwargs = {'k': max_results}
-                
-                resultados_filtrados = retriever_temp.invoke(query)
-                return ArticleDocumentDTO.documents_to_search_results(resultados_filtrados)
-            else:
-                # Se não há filtros, usar resultados combinados diretamente
-                return self._format_combined_results_as_articles(resultados_combinados, max_results)
-        else:
+        if not resultados_combinados:
             return []
+
+        documents_filtrados = ArticleDocumentDTO.combined_results_to_documents(resultados_combinados)
+
+        if filters and documents_filtrados:
+            retriever_temp = self._create_temporary_retriever(documents_filtrados)
+
+            if retriever_temp is None:
+                raise RuntimeError("Erro ao criar retriever temporário para aplicar filtros.")
+            
+            retriever_temp.search_kwargs = {'k': max_results}
+            resultados_filtrados = retriever_temp.invoke(query)
+            
+            return ArticleDocumentDTO.documents_to_search_results(resultados_filtrados)
+
+        return self._format_combined_results_as_articles(resultados_combinados, max_results)
 
     def _reordenar_resultados(self, articles_finais: List[Dict]) -> List[Dict]:
         """
@@ -440,12 +406,10 @@ class SelfQueryService:
                 f"{article['artigo'].get('title', '')}_{article['artigo'].get('author_name', '')}"
             )
             
-            # Verificar se tem origem termos (pode estar em diferentes formatos)
-            tem_origem_termos = False
-            if "origem" in article and "termos" in article["origem"]:
-                tem_origem_termos = True
-            elif "scores_detalhados" in article and article["scores_detalhados"].get("termos", 0.0) > 0:
-                tem_origem_termos = True
+            tem_origem_termos = (
+                ("origem" in article and "termos" in article["origem"]) or
+                ("scores_detalhados" in article and article["scores_detalhados"].get("termos", 0.0) > 0)
+            )
             
             if artigo_id not in ids_processados and tem_origem_termos:
                 articles_finais_dedupe.append(article)

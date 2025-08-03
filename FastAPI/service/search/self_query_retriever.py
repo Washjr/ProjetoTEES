@@ -1,4 +1,3 @@
-import hashlib
 import json
 import logging
 import os
@@ -22,7 +21,7 @@ from langchain_openai import ChatOpenAI
 from dao.artigo_dao import ArtigoDAO
 from service.embedding import EmbeddingService
 from service.search.dto import ArticleDocumentDTO
-from config import configuracoes
+from banco.conexao_db import Conexao
 
 COLLECTION_NAME = "artigo"
 LLM_MODEL = "gpt-3.5-turbo"
@@ -36,7 +35,7 @@ class SelfQueryRetrieverService:
     Usa embeddings já armazenados na coluna embedding da tabela artigo.
     """
     
-    def __init__(self, connection_string: str = None, collection_name: str = COLLECTION_NAME):
+    def __init__(self, connection_string: str = Conexao.get_connection_string(), collection_name: str = COLLECTION_NAME):
         """
         Inicializa o serviço de Self Query Retriever com PGVector.
         
@@ -44,7 +43,7 @@ class SelfQueryRetrieverService:
             connection_string: String de conexão PostgreSQL (opcional, usa configurações se None)
             collection_name: Nome da coleção no PGVector
         """
-        self.connection_string = connection_string or self._get_connection_string()
+        self.connection_string = connection_string
         self.collection_name = collection_name
         
         self.artigo_dao = ArtigoDAO()
@@ -53,7 +52,7 @@ class SelfQueryRetrieverService:
         
         self.llm = ChatOpenAI(
             temperature=LLM_TEMPERATURE,
-            openai_api_key=self.embedding_service.embeddings_client.openai_api_key,
+            api_key=self.embedding_service.embeddings_client.openai_api_key,
             model=LLM_MODEL
         )
         
@@ -73,24 +72,12 @@ class SelfQueryRetrieverService:
         
         self.retriever = None
         self._vectorstore = None
-    
-    def _get_connection_string(self) -> str:
-        """Obtém a string de conexão usando as configurações da classe Conexao."""
-        try:
-            # Usar as mesmas configurações da classe Conexao
-            return (f"postgresql://{configuracoes.DB_USER}:{configuracoes.DB_PASS}@"
-                   f"{configuracoes.DB_HOST}:{configuracoes.DB_PORT}/{configuracoes.DB_NAME}")
-        except AttributeError as e:
-            logger.error(f"Erro ao acessar configurações do banco: {e}")
-            # Fallback para configuração padrão
-            return "postgresql://postgres:postgres@localhost:5432/postgres"
-    
+
     def _load_metadata_config(self) -> Dict[str, Any]:
         """Carrega configuração de metadados do arquivo JSON."""
         try:
             config_path = Path("config/metadata_config.json")
             if not config_path.exists():
-                # Tentar caminho relativo ao arquivo atual
                 config_path = Path(__file__).parent.parent / "config" / "metadata_config.json"
             
             with open(config_path, 'r', encoding='utf-8') as f:
@@ -111,7 +98,6 @@ class SelfQueryRetrieverService:
             description = field_config["description"]
             field_type = field_config["type"]
             
-            # Mapear tipos para os tipos do AttributeInfo
             if field_type == "integer":
                 attr_type = "integer"
             elif field_type == "float":
@@ -119,7 +105,6 @@ class SelfQueryRetrieverService:
             else:
                 attr_type = "string"
             
-            # Criar AttributeInfo
             attr_info = AttributeInfo(
                 name=name,
                 description=description,
@@ -133,7 +118,6 @@ class SelfQueryRetrieverService:
     def _create_documents_from_artigos(self, limit: Optional[int] = None) -> List[Document]:
         """Cria documentos a partir dos artigos do banco de dados usando DTO."""
         try:
-            # Buscar artigos que já possuem embeddings
             artigos = self.artigo_dao.listar_artigos_com_embeddings()
             
             if not artigos:
@@ -143,7 +127,6 @@ class SelfQueryRetrieverService:
             if limit:
                 artigos = artigos[:limit]
             
-            # Usar DTO para conversão
             documents = ArticleDocumentDTO.artigos_to_documents(artigos)
             
             logger.info(f"Criados {len(documents)} documentos a partir dos artigos com embeddings")
@@ -158,16 +141,13 @@ class SelfQueryRetrieverService:
         logger.info("Criando vectorstore no PGVector usando embeddings existentes da tabela artigo...")
         
         try:
-            # Conectar diretamente à tabela artigo existente usando PGVector
             vectorstore = PGVector(
                 connection_string=self.connection_string,
                 embedding_function=self.embedding_service.embeddings_client,
-                collection_name=self.collection_name,  # "artigo"
+                collection_name=self.collection_name,
             )
             
-            # Verificar se precisa popular os dados
             try:
-                # Tentar fazer uma busca para verificar se já tem dados
                 test_results = vectorstore.similarity_search("test", k=1)
                 if len(test_results) == 0:
                     logger.info("Tabela existe mas parece estar vazia, populando com dados dos artigos...")
@@ -188,7 +168,6 @@ class SelfQueryRetrieverService:
     def _populate_vectorstore_from_artigos(self, vectorstore: PGVector, documents: List[Document]):
         """Popula o vectorstore usando embeddings já existentes da tabela artigo."""
         try:
-            # Buscar artigos que já possuem embeddings
             artigos = self.artigo_dao.listar_artigos_com_embeddings()
             
             if not artigos:
@@ -196,15 +175,15 @@ class SelfQueryRetrieverService:
             
             logger.info(f"Encontrados {len(artigos)} artigos com embeddings")
             
-            # Usar DTO para converter artigos para documentos
             documents_to_add = ArticleDocumentDTO.artigos_to_documents(artigos)
             
-            # Preparar dados para o vectorstore
-            texts = [doc.page_content for doc in documents_to_add]
-            metadatas = [doc.metadata for doc in documents_to_add]
-            
-            # Adicionar documentos ao vectorstore
-            # Para PGVector da langchain_community, usamos add_texts
+            texts = []
+            metadatas = []
+
+            for doc in documents_to_add:
+                texts.append(doc.page_content)
+                metadatas.append(doc.metadata)
+        
             vectorstore.add_texts(
                 texts=texts,
                 metadatas=metadatas
@@ -227,19 +206,15 @@ class SelfQueryRetrieverService:
             SelfQueryRetriever configurado
         """
         try:
-            # Criar documentos (apenas para estrutura, embeddings vêm da tabela)
             documents = self._create_documents_from_artigos(limit_documents)
             
             if not documents:
                 raise ValueError("Nenhum documento foi criado")
             
-            # Gerar chave de cache simples
             cache_key = "artigo_table"
             
-            # Configurar vectorstore usando embeddings da tabela artigo
             self._vectorstore = self._setup_vectorstore(documents, cache_key)
 
-            # Criar SelfQueryRetriever
             self.retriever = SelfQueryRetriever.from_llm(
                 llm=self.llm,
                 document_contents=self.document_content_description,
@@ -271,30 +246,13 @@ class SelfQueryRetrieverService:
             self.initialize_retriever()
         
         try:
-            # Configurar parâmetros de busca
-            self.retriever.search_kwargs = {"k": k}
+            if self.retriever is None:
+                raise RuntimeError("Retriever não inicializado. Chame initialize_retriever primeiro.")
             
-            # Executar consulta
+            self.retriever.search_kwargs = {"k": k}
             results = self.retriever.invoke(query_text)
             
             logger.info(f"Consulta executada: '{query_text}' - {len(results)} resultados")
-            # Salvar consulta e resultados em arquivo
-            with open("query_results.txt", "a", encoding="utf-8") as f:
-                # Obter a query estruturada gerada pelo retriever
-                structured_query = getattr(self.retriever, "last_query", None)
-                if structured_query is None and hasattr(self.retriever, "query_constructor"):
-                    # Tenta obter a query estruturada do output_parser
-                    try:
-                        structured_query = self.retriever.query_constructor.invoke(query_text)
-                    except Exception:
-                        structured_query = None
-
-                f.write(f"Consulta: {query_text}\n")
-                f.write(f"Query estruturada: {structured_query}\n")
-                for i, doc in enumerate(results, 1):
-                    f.write(f"{i}. {doc.page_content[:100]}...\n")
-                    f.write(f"   Metadados: {doc.metadata}\n")
-                f.write("\n")
             return results
             
         except Exception as e:

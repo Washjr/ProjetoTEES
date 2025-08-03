@@ -2,6 +2,7 @@ import threading
 import logging
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2 import OperationalError
+from typing import Optional
 
 from config import configuracoes
 
@@ -13,8 +14,7 @@ class Conexao:
     Gerencia um pool de conexões PostgreSQL usando psycopg2.
     Singleton thread-safe com verificação de conexões ativas.
     """
-
-    _pool: SimpleConnectionPool = None
+    _pool: Optional[SimpleConnectionPool] = None
     _trava = threading.Lock()
     
     @classmethod
@@ -55,6 +55,9 @@ class Conexao:
         if cls._pool is None:
             cls.inicializar_pool()
 
+        if cls._pool is None:
+            raise RuntimeError("Pool de conexões não foi inicializado corretamente.")
+
         tentativa = 0
         while tentativa < max_tentativas:
             tentativa += 1
@@ -78,7 +81,6 @@ class Conexao:
                     tentativa, erro
                 )
                 
-        # Se não obteve conexão válida em max_tentativas
         raise RuntimeError(
             f"Não foi possível obter conexão ativa após {max_tentativas} tentativas."
         )
@@ -106,3 +108,13 @@ class Conexao:
         if cls._pool:
             cls._pool.closeall()
             logger.info("Todas as conexões do pool foram fechadas.")
+
+    @classmethod
+    def get_connection_string(cls) -> str:
+        """
+        Retorna a string de conexão formatada.
+        """
+        return (
+            f"postgresql://{configuracoes.DB_USER}:{configuracoes.DB_PASS}@"
+            f"{configuracoes.DB_HOST}:{configuracoes.DB_PORT}/{configuracoes.DB_NAME}"
+        )

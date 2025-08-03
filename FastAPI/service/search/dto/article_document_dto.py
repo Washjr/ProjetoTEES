@@ -236,7 +236,6 @@ class ArticleDocumentDTO:
         Returns:
             Dict: Metadados formatados
         """
-        # Extrair nome do primeiro autor
         author_name = ''
         if artigo.get('authors'):
             if isinstance(artigo['authors'], list) and len(artigo['authors']) > 0:
@@ -246,7 +245,6 @@ class ArticleDocumentDTO:
                 else:
                     author_name = str(first_author)
         
-        # Processar classificação Qualis
         qualis_str = artigo.get('qualis', '') or ''
         
         metadata = {
@@ -259,7 +257,6 @@ class ArticleDocumentDTO:
             "artigo_id": artigo.get('id') or artigo.get('id_artigo')
         }
         
-        # Filtrar valores None dos metadados
         return {k: v for k, v in metadata.items() if v is not None}
     
     @classmethod
@@ -286,7 +283,6 @@ class ArticleDocumentDTO:
         Returns:
             Dict: Resposta formatada para o controller
         """
-        # Converter documentos para resultados
         results = cls.documents_to_search_results(documents)
         
         response = {
@@ -296,7 +292,6 @@ class ArticleDocumentDTO:
             "results": results
         }
         
-        # Adicionar informações extras se fornecidas
         if additional_info:
             response.update(additional_info)
         
@@ -313,7 +308,6 @@ class ArticleDocumentDTO:
         Returns:
             bool: True se válido, False caso contrário
         """
-        # Verificar campos obrigatórios mínimos
         required_fields = ['title']
         
         for field in required_fields:

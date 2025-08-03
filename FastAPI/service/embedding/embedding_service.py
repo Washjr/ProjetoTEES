@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import psycopg2
 from langchain_openai import OpenAIEmbeddings
+from pydantic import SecretStr
 from psycopg2.extras import RealDictCursor
 
 from banco.conexao_db import Conexao
@@ -47,10 +48,9 @@ class EmbeddingService(IEmbeddingService):
             raise ValueError("OPENAI_API_KEY não configurada")
 
     def _create_embeddings_client(self) -> OpenAIEmbeddings:
-        """Cria cliente para geração de embeddings"""
         return OpenAIEmbeddings(
             model=OPENAI_EMBEDDING_MODEL,
-            openai_api_key=configuracoes.OPENAI_API_KEY
+            api_key=SecretStr(configuracoes.OPENAI_API_KEY)
         )
 
     def generate_embedding(self, text: str) -> List[float]:

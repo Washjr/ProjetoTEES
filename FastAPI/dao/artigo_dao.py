@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 from psycopg2 import IntegrityError
 
 from banco.conexao_db import Conexao
@@ -18,7 +18,6 @@ class ArtigoDAO:
 
     def __del__(self):
         Conexao.devolver_conexao(self.conexao)
-
     
     def listar_artigos(self) -> List[Dict]: 
         sql = (
@@ -84,7 +83,6 @@ class ArtigoDAO:
             logger.exception("Erro ao listar artigos")
             raise RuntimeError(f"Erro ao listar artigos: {e}")
 
-
     def buscar_por_termo(self, termo: str) -> List[Dict]:
         sql = (
             "SELECT "
@@ -136,7 +134,6 @@ class ArtigoDAO:
                         "authors": []
                     }
                 
-                # Adicionar autor se não existir
                 author_exists = any(
                     author["id"] == str(author_id) 
                     for author in artigos_dict[key]["authors"]
@@ -152,7 +149,6 @@ class ArtigoDAO:
         except Exception as e:
             logger.exception(f"Erro ao buscar artigo pelo termo: '{termo}'")
             raise RuntimeError(f"Erro ao buscar artigo por termo: {e}")
-
 
     def salvar_artigo(self, artigo: Artigo) -> Dict:
         sql = (
@@ -180,8 +176,7 @@ class ArtigoDAO:
         except Exception as e:
             self.conexao.rollback()
             logger.exception("Erro ao salvar artigo")
-            raise RuntimeError(f"Erro ao salvar artigo: {e}")
-        
+            raise RuntimeError(f"Erro ao salvar artigo: {e}")  
         
     def atualizar_artigo(self, artigo:Artigo) -> Dict:
         sql = (
@@ -215,7 +210,6 @@ class ArtigoDAO:
             logger.exception("Erro ao atualizar artigo")
             raise RuntimeError(f"Erro ao atualizar artigo: {e}")
         
-
     def apagar_artigo(self, id_artigo: str) -> None:
         sql = (
             "DELETE FROM artigo "
@@ -236,7 +230,6 @@ class ArtigoDAO:
             logger.exception("Erro ao apagar artigo")
             raise RuntimeError(f"Erro ao apagar artigo: {e}")
     
-
     def sincronizar_resumos(self) -> None:
         """
         Atualiza os campos de resumo dos artigos com DOI nulo, 
@@ -281,144 +274,6 @@ class ArtigoDAO:
         except Exception as e:
             logger.exception("Erro ao sincronizar resumos dos artigos")
             raise RuntimeError(f"Erro ao sincronizar resumos: {e}")
-
-    def buscar_com_filtros(self, filtros: List[Dict] = None) -> List[Dict]:
-        """
-        Busca artigos aplicando filtros dinâmicos.
-        
-        Args:
-            filtros: Lista de filtros no formato [{"field": "year", "operator": ">=", "value": 2020}]
-        
-        Returns:
-            Lista de artigos filtrados
-        """
-        # Query base
-        sql = (
-            "SELECT "
-            "a.id_artigo as id, "
-            "a.nome as title, "
-            "per.nome as journal, "
-            "a.ano as year, "
-            "a.resumo as abstract, "
-            "a.doi, "
-            "per.qualis, "
-            "p.id_pesquisador as author_id, "
-            "p.nome as author_name "
-            "FROM artigo a "
-            "JOIN periodico per ON a.id_periodico = per.id_periodico "
-            "JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
-        )
-        
-        # Construir condições WHERE dinamicamente
-        where_conditions = []
-        params = []
-        
-        if filtros:
-            for filtro in filtros:
-                field = filtro["field"]
-                operator = filtro["operator"]
-                value = filtro["value"]
-                
-                if field == "year":
-                    where_conditions.append(f"a.ano {operator} %s")
-                    params.append(value)
-                elif field == "qualis":
-                    if operator in [">=", "<=", ">", "<"]:
-                        # Para Qualis, usar hierarquia
-                        hierarchy = ["A1", "A2", "B1", "B2", "B3", "B4", "C"]
-                        try:
-                            value_index = hierarchy.index(value)
-                            if operator in [">=", "melhor"]:
-                                valid_qualis = hierarchy[:value_index + 1]
-                            elif operator in ["<=", "pior"]:
-                                valid_qualis = hierarchy[value_index:]
-                            else:
-                                valid_qualis = [value]
-                            
-                            placeholders = ", ".join(["%s"] * len(valid_qualis))
-                            where_conditions.append(f"per.qualis IN ({placeholders})")
-                            params.extend(valid_qualis)
-                        except ValueError:
-                            # Se valor não encontrado na hierarquia, usar comparação simples
-                            where_conditions.append("per.qualis = %s")
-                            params.append(value)
-                    else:
-                        where_conditions.append("per.qualis = %s")
-                        params.append(value)
-                elif field == "journal":
-                    if operator == "contains":
-                        where_conditions.append("unaccent(lower(per.nome)) ILIKE unaccent(lower(%s))")
-                        params.append(f"%{value}%")
-                    else:
-                        where_conditions.append("per.nome = %s")
-                        params.append(value)
-                elif field == "author_name":
-                    if operator == "contains":
-                        where_conditions.append("unaccent(lower(p.nome)) ILIKE unaccent(lower(%s))")
-                        params.append(f"%{value}%")
-                    else:
-                        where_conditions.append("p.nome = %s")
-                        params.append(value)
-                elif field == "doi":
-                    if operator == "contains":
-                        where_conditions.append("lower(a.doi) ILIKE lower(%s)")
-                        params.append(f"%{value}%")
-                    else:
-                        where_conditions.append("a.doi = %s")
-                        params.append(value)
-        
-        # Adicionar WHERE se há condições
-        if where_conditions:
-            sql += "WHERE " + " AND ".join(where_conditions) + " "
-        
-        sql += "ORDER BY a.id_artigo"
-        
-        try:
-            with self.conexao.cursor() as cursor:
-                cursor.execute(sql, params)
-                linhas = cursor.fetchall()
-            
-            # Agrupar resultados por artigo para lidar com múltiplos autores
-            artigos_dict = {}
-            for linha in linhas:
-                (id_artigo, title, journal, year, abstract, doi, qualis, 
-                 author_id, author_name) = linha
-                
-                normalized_title = title.strip().lower()
-                normalized_journal = journal.strip().lower() if journal else ""
-                normalized_year = str(year).strip() if year else ""
-                normalized_doi = (doi.strip().lower() if doi else "")
-
-                key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
-
-                if key not in artigos_dict:
-                    artigos_dict[key] = {
-                        "id": str(id_artigo),
-                        "title": title,
-                        "journal": journal,
-                        "year": year,
-                        "abstract": abstract or "",
-                        "doi": doi,
-                        "qualis": qualis,
-                        "authors": []
-                    }
-                
-                # Adicionar autor se não existir
-                author_exists = any(
-                    author["id"] == str(author_id) 
-                    for author in artigos_dict[key]["authors"]
-                )
-                if not author_exists:
-                    artigos_dict[key]["authors"].append({
-                        "id": str(author_id),
-                        "name": author_name
-                    })
-            
-            return list(artigos_dict.values())
-
-        except Exception as e:
-            logger.exception("Erro ao buscar artigos com filtros")
-            raise RuntimeError(f"Erro ao buscar artigos com filtros: {e}")
 
     def listar_artigos_com_embeddings(self) -> List[Dict]:
         """
