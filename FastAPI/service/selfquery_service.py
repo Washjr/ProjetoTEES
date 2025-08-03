@@ -206,6 +206,13 @@ class SelfQueryService:
             #print articles_finais 
             logger.info(f"Resultados finais após filtros: {len(articles_finais)} artigos")
             
+            # Debug: Verificar se scores semânticos estão sendo preservados
+            for i, article in enumerate(articles_finais[:3]):  # Log apenas os 3 primeiros
+                score_info = article.get("scores_detalhados", {})
+                logger.debug(f"Artigo {i+1}: score={article.get('score', 'N/A')}, "
+                           f"semantico={score_info.get('semantico', 'N/A')}, "
+                           f"termos={score_info.get('termos', 'N/A')}")
+            
             # Passo 5: Reordenar resultados priorizando busca por termos
             articles_finais = self._reordenar_resultados(articles_finais)
                 
@@ -278,6 +285,12 @@ class SelfQueryService:
             {
                 "artigo": resultado["artigo"],
                 "score": resultado["score"],
+                "scores_detalhados": resultado.get("scores_detalhados", {
+                    "termos": resultado.get("score_termos", 0.0),
+                    "semantico": resultado.get("score_semantico", 0.0),
+                    "final": resultado["score"]
+                }),
+                "origem": resultado.get("origem", []),
                 "metadata": {
                     "year": resultado["artigo"].get("year"),
                     "qualis": resultado["artigo"].get("qualis", ""),
@@ -388,16 +401,15 @@ class SelfQueryService:
             Lista de artigos filtrados
         """
         if resultados_combinados:
-            # Usar DTO para converter resultados para documentos
+            # Usar DTO para converter resultados para documentos (preservando scores)
             documents_filtrados = ArticleDocumentDTO.combined_results_to_documents(resultados_combinados)
             
-            # Criar retriever temporário
-            retriever_temp = self._create_temporary_retriever(documents_filtrados)
-
-            retriever_temp.search_kwargs = {'k': max_results}
-            
             # Aplicar filtros se existirem
-            if filters and retriever_temp:
+            if filters and documents_filtrados:
+                # Criar retriever temporário
+                retriever_temp = self._create_temporary_retriever(documents_filtrados)
+                retriever_temp.search_kwargs = {'k': max_results}
+                
                 resultados_filtrados = retriever_temp.invoke(query)
                 return ArticleDocumentDTO.documents_to_search_results(resultados_filtrados)
             else:
@@ -428,7 +440,14 @@ class SelfQueryService:
                 f"{article['artigo'].get('title', '')}_{article['artigo'].get('author_name', '')}"
             )
             
-            if artigo_id not in ids_processados and "termos" in article.get("origem", []):
+            # Verificar se tem origem termos (pode estar em diferentes formatos)
+            tem_origem_termos = False
+            if "origem" in article and "termos" in article["origem"]:
+                tem_origem_termos = True
+            elif "scores_detalhados" in article and article["scores_detalhados"].get("termos", 0.0) > 0:
+                tem_origem_termos = True
+            
+            if artigo_id not in ids_processados and tem_origem_termos:
                 articles_finais_dedupe.append(article)
                 ids_processados.add(artigo_id)
         

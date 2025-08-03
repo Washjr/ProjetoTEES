@@ -159,13 +159,28 @@ class ArticleDocumentDTO:
         for i, document in enumerate(documents):
             try:
                 artigo = cls.document_to_artigo(document)
-                score = scores[i] if scores and i < len(scores) else 1.0
+                
+                # Priorizar score fornecido, depois combined_score dos metadados, depois padrão
+                if scores and i < len(scores):
+                    score = scores[i]
+                elif "combined_score" in document.metadata:
+                    score = document.metadata["combined_score"]
+                else:
+                    score = 1.0
                 
                 result = {
                     "artigo": artigo,
                     "score": score,
                     "metadata": document.metadata
                 }
+                
+                # Preservar scores detalhados se existirem
+                if "scores_detalhados" in document.metadata or any(k.startswith("score_") for k in document.metadata.keys()):
+                    result["scores_detalhados"] = {
+                        "termos": document.metadata.get("score_termos", 0.0),
+                        "semantico": document.metadata.get("score_semantico", 0.0),
+                        "final": document.metadata.get("score_final", score)
+                    }
                 
                 results.append(result)
                 
@@ -194,7 +209,14 @@ class ArticleDocumentDTO:
                 artigo = resultado["artigo"]
 
                 document = cls.artigo_to_document(artigo)
-                                
+                
+                # Preservar scores nos metadados do documento
+                document.metadata["combined_score"] = resultado.get("score", 0.0)
+                if "scores_detalhados" in resultado:
+                    document.metadata["score_termos"] = resultado["scores_detalhados"].get("termos", 0.0)
+                    document.metadata["score_semantico"] = resultado["scores_detalhados"].get("semantico", 0.0)
+                    document.metadata["score_final"] = resultado["scores_detalhados"].get("final", 0.0)
+                
                 documents.append(document)
                 
             except Exception as e:
