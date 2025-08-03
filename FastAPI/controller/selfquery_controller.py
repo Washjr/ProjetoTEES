@@ -120,7 +120,7 @@ class SelfQueryController:
             logger.error(f"Erro na busca híbrida: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Erro ao processar busca híbrida: {str(e)}"
+                detail=f"Erro ao processar busca híbrida endpoint: {str(e)}"
             )
 
 # Instância do controller e router exportável

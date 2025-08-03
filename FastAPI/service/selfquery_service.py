@@ -202,40 +202,6 @@ class SelfQueryService:
             logger.error(f"Erro na busca híbrida: {e}")
             raise RuntimeError(f"Erro ao processar busca híbrida: {str(e)}")
 
-    def _create_temporary_retriever(self, documents: List[Document]) -> Optional[SelfQueryRetriever]:
-        """
-        Cria um retriever temporário com os documentos fornecidos.
-        
-        Args:
-            documents: Lista de documentos
-            
-        Returns:
-            Retriever temporário ou None se erro
-        """
-        try:
-            embeddings = self.embedding_service.embeddings_client
-            
-            vectorstore_temp = Chroma.from_documents(
-                documents=documents,
-                embedding=embeddings,
-                persist_directory=None
-            )
-
-            retriever_temp = SelfQueryRetriever.from_llm(
-                llm=self.self_query.llm,
-                vectorstore=vectorstore_temp,
-                document_contents=self.self_query.document_content_description,
-                metadata_field_info=self.self_query.attribute_infos,
-                verbose=True,
-                enable_limit=True
-            )
-
-            return retriever_temp
-            
-        except Exception as e:
-            logger.error(f"Erro ao criar retriever temporário: {e}")
-            return None
-
     def _format_combined_results_as_articles(self, resultados_combinados: List[Dict], max_results: int) -> List[Dict[str, Any]]:
         """
         Formata os resultados combinados como artigos para retorno na busca.
@@ -372,7 +338,7 @@ class SelfQueryService:
         documents_filtrados = ArticleDocumentDTO.combined_results_to_documents(resultados_combinados)
 
         if filters and documents_filtrados:
-            retriever_temp = self._create_temporary_retriever(documents_filtrados)
+            retriever_temp = self.self_query.create_temporary_retriever(documents_filtrados)
 
             if retriever_temp is None:
                 raise RuntimeError("Erro ao criar retriever temporário para aplicar filtros.")

@@ -1,10 +1,11 @@
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict
 from psycopg2 import IntegrityError
 
 from banco.conexao_db import Conexao
 from model.artigo import Artigo
 from service.utils.openalex import buscar_resumo_openalex
+from model.dto.artigo_busca_dto import ArtigoBuscaDTO
 
 logger = logging.getLogger(__name__)
 
@@ -275,12 +276,12 @@ class ArtigoDAO:
             logger.exception("Erro ao sincronizar resumos dos artigos")
             raise RuntimeError(f"Erro ao sincronizar resumos: {e}")
 
-    def listar_artigos_com_embeddings(self) -> List[Dict]:
+    def listar_artigos_com_embeddings(self) -> List[ArtigoBuscaDTO]:
         """
         Lista artigos que possuem embeddings na coluna embedding.
         
         Returns:
-            Lista de dicionários com dados dos artigos que possuem embeddings
+            Lista de objetos ArtigoBuscaDTO com dados dos artigos que possuem embeddings
         """
         sql = (
             "SELECT "
@@ -304,11 +305,10 @@ class ArtigoDAO:
                 cursor.execute(sql)
                 linhas = cursor.fetchall()
             
-            # Agrupar resultados por artigo para lidar com múltiplos autores
             artigos_dict = {}
             for linha in linhas:
                 (id_artigo, title, journal, year, abstract, doi, qualis, 
-                 author_id, author_name) = linha
+                author_id, author_name) = linha
                 
                 normalized_title = title.strip().lower()
                 normalized_journal = journal.strip().lower() if journal else ""
@@ -316,7 +316,7 @@ class ArtigoDAO:
                 normalized_doi = (doi.strip().lower() if doi else "")
 
                 key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
-
+                
                 if key not in artigos_dict:
                     artigos_dict[key] = {
                         "id": str(id_artigo),
@@ -328,20 +328,26 @@ class ArtigoDAO:
                         "qualis": qualis,
                         "authors": []
                     }
-                
-                # Adicionar autor se não existir
-                author_exists = any(
-                    author["id"] == str(author_id) 
-                    for author in artigos_dict[key]["authors"]
-                )
-                if not author_exists:
-                    artigos_dict[key]["authors"].append({
-                        "id": str(author_id),
-                        "name": author_name
-                    })
+
+                if author_name and author_name not in artigos_dict[key]["authors"]:
+                    artigos_dict[key]["authors"].append(author_name)
             
-            logger.info(f"Encontrados {len(artigos_dict)} artigos com embeddings")
-            return list(artigos_dict.values())
+            artigos_dto = []
+            for artigo_data in artigos_dict.values():
+                dto = ArtigoBuscaDTO(
+                    id=artigo_data["id"],
+                    title=artigo_data["title"],
+                    abstract=artigo_data["abstract"],
+                    doi=artigo_data["doi"],
+                    year=artigo_data["year"],
+                    journal=artigo_data["journal"],
+                    qualis=artigo_data["qualis"],
+                    authors=artigo_data["authors"]
+                )
+                artigos_dto.append(dto)
+            
+            logger.info(f"Encontrados {len(artigos_dto)} artigos com embeddings")
+            return artigos_dto
 
         except Exception as e:
             logger.exception("Erro ao buscar artigos com embeddings")
