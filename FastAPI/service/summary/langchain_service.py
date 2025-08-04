@@ -3,6 +3,7 @@ from typing import List, Dict
 
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_openai import OpenAI
+from pydantic import SecretStr
 
 from config import configuracoes
 from service.embedding import EmbeddingService
@@ -17,6 +18,7 @@ LLM_MODEL = "gpt-3.5-turbo-instruct"
 LLM_MAX_TOKENS = 500
 TEXT_SPLITTER_CHUNK_SIZE = 3000
 TEXT_SPLITTER_CHUNK_OVERLAP = 50
+TAGS_FALLBACK = ["Pesquisa Acadêmica", "Ciência", "Produção Científica"]
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +37,8 @@ class LangchainService:
 
         self.llm = self._create_llm()
         self.splitter = CharacterTextSplitter(
-            chunk_size=TEXT_SPLITTER_CHUNK_SIZE, 
-            chunk_overlap=TEXT_SPLITTER_CHUNK_OVERLAP
+            chunk_size=TEXT_SPLITTER_CHUNK_SIZE,
+            chunk_overlap=TEXT_SPLITTER_CHUNK_OVERLAP,
         )
 
         self.similarity_filter = SimilarityFilter(self.config, self.embedding_service)
@@ -50,17 +52,18 @@ class LangchainService:
         self.api_key = api_key
 
     def _create_llm(self) -> OpenAI:
-        """Cria instância do LLM"""
         return OpenAI(
-            api_key=self.api_key,
+            api_key=SecretStr(self.api_key),
             temperature=LLM_TEMPERATURE,
-            model_name=LLM_MODEL,
+            model=LLM_MODEL,
             max_tokens=LLM_MAX_TOKENS,
         )
 
     def _should_use_chunking(self, user_query: str) -> bool:
         """Determina se deve usar chunking baseado na query"""
-        return user_query and len(user_query.strip()) > self.config.MIN_QUERY_LENGTH
+        return bool(
+            user_query and len(user_query.strip()) > self.config.MIN_QUERY_LENGTH
+        )
 
     def summarize(self, documentos: List[Dict], tipo: str, user_query: str = "") -> str:
         """Método principal de resumo"""
@@ -185,7 +188,7 @@ class LangchainService:
         """Gera tags para pesquisador"""
         try:
             if not producoes:
-                return ["Pesquisa Acadêmica", "Ciência", "Produção Científica"]
+                return TAGS_FALLBACK
 
             if self._should_use_chunking(user_query):
                 content = self._build_tags_content_with_chunks(
@@ -202,7 +205,7 @@ class LangchainService:
 
         except Exception:
             logger.exception("Erro ao gerar tags do pesquisador")
-            return ["Pesquisa Acadêmica", "Ciência", "Produção Científica"]
+            return TAGS_FALLBACK
 
     def gerar_tags_artigo(
         self, documentos: List[Dict], user_query: str = ""
@@ -210,7 +213,7 @@ class LangchainService:
         """Gera tags para artigos"""
         try:
             if not documentos:
-                return ["Pesquisa Científica", "Artigo Acadêmico"]
+                return TAGS_FALLBACK
 
             if self._should_use_chunking(user_query):
                 content = self._build_tags_content_with_chunks(
@@ -227,8 +230,8 @@ class LangchainService:
 
         except Exception:
             logger.exception("Erro ao gerar tags dos artigos")
-            return ["Pesquisa Científica", "Artigo Acadêmico", "Ciência"]
-
+            return TAGS_FALLBACK
+        
     def _build_tags_content_with_chunks(
         self, documentos: List[Dict], user_query: str, doc_type: str
     ) -> str:

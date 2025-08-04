@@ -1,10 +1,8 @@
 import logging
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any
 
-from langchain_core.documents import Document
-from langchain_chroma import Chroma
-from langchain.retrievers.self_query.base import SelfQueryRetriever
-
+from model.dto.artigo_busca_dto import ArtigoBuscaDTO
+from model.mapper.artigo_dto_mapper import ArtigoDTOMapper
 from dao.artigo_dao import ArtigoDAO
 from service.embedding import EmbeddingService
 from service.search.semantic_search import SemanticSearchService
@@ -236,8 +234,8 @@ class SelfQueryService:
 
     def _combinar_resultados(
         self, 
-        resultados_termos: List[Dict], 
-        resultados_semanticos: List[Tuple], 
+        resultados_termos: List[ArtigoBuscaDTO], 
+        resultados_semanticos: List[ArtigoBuscaDTO], 
         peso_semantico: float
     ) -> List[Dict[str, Any]]:
         """
@@ -245,7 +243,7 @@ class SelfQueryService:
         
         Args:
             resultados_termos: Resultados da busca por termos
-            resultados_semanticos: Resultados da busca semântica
+            resultados_semanticos: Resultados da busca semântica já convertidos para ArtigoBuscaDTO
             peso_semantico: Peso para combinar resultados
             
         Returns:
@@ -255,35 +253,28 @@ class SelfQueryService:
         
         # Processar resultados de termos
         for artigo in resultados_termos:
-            artigo_id = artigo.get('id') or artigo.get('id_artigo') or artigo.get('doi')
+            artigo_id = artigo.id or artigo.doi or f"{artigo.title}_{getattr(artigo, 'author_name', '')}"
             if artigo_id:
                 artigos_combinados[artigo_id] = {
-                    "artigo": artigo,
+                    "artigo": ArtigoDTOMapper.to_dict_from_artigo_busca_dto(artigo),
                     "score_termos": 1.0,
                     "score_semantico": 0.0,
                     "origem": ["termos"]
                 }
         
         # Processar resultados semânticos
-        for artigo, score in resultados_semanticos:
-            artigo_id = artigo.get('id') or artigo.get('id_artigo') or artigo.get('doi')
+        for artigo in resultados_semanticos:
+            artigo_id = artigo.id or artigo.doi or f"{artigo.title}_{getattr(artigo, 'author_name', '')}"
             if artigo_id:
+                artigo_dict = ArtigoDTOMapper.to_dict_from_artigo_busca_dto(artigo)
+                score = artigo.score if artigo.score is not None else 0.0
+                
                 if artigo_id in artigos_combinados:
                     artigos_combinados[artigo_id]["score_semantico"] = score
                     artigos_combinados[artigo_id]["origem"].append("semantica")
                 else:
                     artigos_combinados[artigo_id] = {
-                        "artigo": artigo,
-                        "score_termos": 0.0,
-                        "score_semantico": score,
-                        "origem": ["semantica"]
-                    }
-            else:
-                # Fallback usando título + autor
-                fallback_key = f"{artigo.get('title', '')}_{artigo.get('author_name', '')}"
-                if fallback_key not in artigos_combinados:
-                    artigos_combinados[fallback_key] = {
-                        "artigo": artigo,
+                        "artigo": artigo_dict,
                         "score_termos": 0.0,
                         "score_semantico": score,
                         "origem": ["semantica"]

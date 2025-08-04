@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, status
 import logging
 
+from model.mapper.artigo_dto_mapper import ArtigoDTOMapper
 from dao.artigo_dao import ArtigoDAO
 from model.artigo import Artigo
 from service.summary.langchain_service import LangchainService
@@ -99,6 +100,7 @@ class ArtigoController:
     ):
         try:
             resultados = self.dao.buscar_por_termo(termo)
+            resultados = ArtigoDTOMapper.to_dict_list_from_artigo_busca_dto(resultados)
 
             if incluir_resumo and resultados:
                 resumo = self.summarizer.summarize(resultados, tipo="artigo")

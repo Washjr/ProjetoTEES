@@ -2,6 +2,7 @@ import logging
 from typing import List, Dict
 from psycopg2 import IntegrityError
 
+from model.mapper.artigo_dto_mapper import ArtigoDTOMapper
 from banco.conexao_db import Conexao
 from model.artigo import Artigo
 from service.utils.openalex import buscar_resumo_openalex
@@ -20,7 +21,62 @@ class ArtigoDAO:
     def __del__(self):
         Conexao.devolver_conexao(self.conexao)
     
-    def listar_artigos(self) -> List[Dict]: 
+    def _executar_consulta_artigos(self, sql: str, parametros: tuple = ()) -> Dict[str, Dict]:
+        """
+        Executa consulta SQL e agrupa resultados por artigo para lidar com múltiplos autores.
+        
+        Args:
+            sql: Query SQL a ser executada
+            parametros: Parâmetros para a query
+            
+        Returns:
+            Dicionário com artigos agrupados por chave única
+        """
+        try:
+            with self.conexao.cursor() as cursor:
+                cursor.execute(sql, parametros)
+                linhas = cursor.fetchall()
+            
+            artigos_dict = {}
+            for linha in linhas:
+                (id_artigo, title, journal, year, abstract, doi, qualis, 
+                 author_id, author_name) = linha
+                
+                normalized_title = title.strip().lower()
+                normalized_journal = journal.strip().lower() if journal else ""
+                normalized_year = str(year).strip() if year else ""
+                normalized_doi = (doi.strip().lower() if doi else "")
+
+                key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
+
+                if key not in artigos_dict:
+                    artigos_dict[key] = {
+                        "id": str(id_artigo),
+                        "title": title,
+                        "journal": journal,
+                        "year": year,
+                        "abstract": abstract or "",
+                        "doi": doi,
+                        "qualis": qualis,
+                        "authors": []
+                    }
+                
+                author_exists = any(
+                    author["id"] == str(author_id) 
+                    for author in artigos_dict[key]["authors"]
+                )
+                if not author_exists:
+                    artigos_dict[key]["authors"].append({
+                        "id": str(author_id),
+                        "name": author_name
+                    })
+            
+            return artigos_dict
+        except Exception as e:
+            logger.exception("Erro ao executar consulta de artigos")
+            raise RuntimeError(f"Erro ao executar consulta de artigos: {e}")
+
+    def listar_artigos(self) -> List[ArtigoBuscaDTO]: 
         sql = (
             "SELECT "
             "a.id_artigo as id, "
@@ -37,54 +93,11 @@ class ArtigoDAO:
             "JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
             "ORDER BY a.id_artigo"
         )
-        try:
-            with self.conexao.cursor() as cursor:
-                cursor.execute(sql)
-                linhas = cursor.fetchall()
-            
-            # Agrupar resultados por artigo para lidar com múltiplos autores
-            artigos_dict = {}
-            for linha in linhas:
-                (id_artigo, title, journal, year, abstract, doi, qualis, 
-                 author_id, author_name) = linha
-                
-                normalized_title = title.strip().lower()
-                normalized_journal = journal.strip().lower() if journal else ""
-                normalized_year = str(year).strip() if year else ""
-                normalized_doi = (doi.strip().lower() if doi else "")
+        
+        artigos_dict = self._executar_consulta_artigos(sql)
+        return ArtigoDTOMapper.to_artigo_busca_dto_list_from_dict(artigos_dict)
 
-                key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
-
-                if key  not in artigos_dict:
-                    artigos_dict[key] = {
-                        "id": str(id_artigo),
-                        "title": title,
-                        "journal": journal,
-                        "year": year,
-                        "abstract": abstract or "",
-                        "doi": doi,
-                        "qualis": qualis,
-                        "authors": []
-                    }
-                
-                # Adicionar autor se não existir
-                author_exists = any(
-                    author["id"] == str(author_id) 
-                    for author in artigos_dict[key]["authors"]
-                )
-                if not author_exists:
-                    artigos_dict[key ]["authors"].append({
-                        "id": str(author_id),
-                        "name": author_name
-                    })
-            
-            return list(artigos_dict.values())
-
-        except Exception as e:
-            logger.exception("Erro ao listar artigos")
-            raise RuntimeError(f"Erro ao listar artigos: {e}")
-
-    def buscar_por_termo(self, termo: str) -> List[Dict]:
+    def buscar_por_termo(self, termo: str) -> List[ArtigoBuscaDTO]:
         sql = (
             "SELECT "
             "a.id_artigo as id, "
@@ -103,53 +116,10 @@ class ArtigoDAO:
             "OR unaccent(lower(a.resumo)) ILIKE unaccent(lower(%s)) "
             "ORDER BY a.id_artigo"
         )
-        try:
-            with self.conexao.cursor() as cursor:
-                termo_formatado = f"%{termo.strip()}%"
-                
-                cursor.execute(sql, (termo_formatado, termo_formatado))
-                linhas = cursor.fetchall()
-            
-            # Agrupar resultados por artigo para lidar com múltiplos autores
-            artigos_dict = {}
-            for linha in linhas:
-                (id_artigo, title, journal, year, abstract, doi, qualis, 
-                 author_id, author_name) = linha
-                
-                normalized_title = title.strip().lower()
-                normalized_journal = journal.strip().lower() if journal else ""
-                normalized_year = str(year).strip() if year else ""
-                normalized_doi = (doi.strip().lower() if doi else "")
-
-                key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
-
-                if key  not in artigos_dict:
-                    artigos_dict[key] = {
-                        "id": str(id_artigo),
-                        "title": title,
-                        "journal": journal,
-                        "year": year,
-                        "abstract": abstract or "",
-                        "doi": doi,
-                        "qualis": qualis,
-                        "authors": []
-                    }
-                
-                author_exists = any(
-                    author["id"] == str(author_id) 
-                    for author in artigos_dict[key]["authors"]
-                )
-                if not author_exists:
-                    artigos_dict[key ]["authors"].append({
-                        "id": str(author_id),
-                        "name": author_name
-                    })
-            
-            return list(artigos_dict.values())
-            
-        except Exception as e:
-            logger.exception(f"Erro ao buscar artigo pelo termo: '{termo}'")
-            raise RuntimeError(f"Erro ao buscar artigo por termo: {e}")
+        
+        termo_formatado = f"%{termo.strip()}%"
+        artigos_dict = self._executar_consulta_artigos(sql, (termo_formatado, termo_formatado))
+        return ArtigoDTOMapper.to_artigo_busca_dto_list_from_dict(artigos_dict)
 
     def salvar_artigo(self, artigo: Artigo) -> Dict:
         sql = (
@@ -300,55 +270,9 @@ class ArtigoDAO:
             "WHERE a.embedding IS NOT NULL "
             "ORDER BY a.id_artigo"
         )
-        try:
-            with self.conexao.cursor() as cursor:
-                cursor.execute(sql)
-                linhas = cursor.fetchall()
-            
-            artigos_dict = {}
-            for linha in linhas:
-                (id_artigo, title, journal, year, abstract, doi, qualis, 
-                author_id, author_name) = linha
-                
-                normalized_title = title.strip().lower()
-                normalized_journal = journal.strip().lower() if journal else ""
-                normalized_year = str(year).strip() if year else ""
-                normalized_doi = (doi.strip().lower() if doi else "")
-
-                key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
-                
-                if key not in artigos_dict:
-                    artigos_dict[key] = {
-                        "id": str(id_artigo),
-                        "title": title,
-                        "journal": journal,
-                        "year": year,
-                        "abstract": abstract or "",
-                        "doi": doi,
-                        "qualis": qualis,
-                        "authors": []
-                    }
-
-                if author_name and author_name not in artigos_dict[key]["authors"]:
-                    artigos_dict[key]["authors"].append(author_name)
-            
-            artigos_dto = []
-            for artigo_data in artigos_dict.values():
-                dto = ArtigoBuscaDTO(
-                    id=artigo_data["id"],
-                    title=artigo_data["title"],
-                    abstract=artigo_data["abstract"],
-                    doi=artigo_data["doi"],
-                    year=artigo_data["year"],
-                    journal=artigo_data["journal"],
-                    qualis=artigo_data["qualis"],
-                    authors=artigo_data["authors"]
-                )
-                artigos_dto.append(dto)
-            
-            logger.info(f"Encontrados {len(artigos_dto)} artigos com embeddings")
-            return artigos_dto
-
-        except Exception as e:
-            logger.exception("Erro ao buscar artigos com embeddings")
-            raise RuntimeError(f"Erro ao buscar artigos com embeddings: {e}")
+        
+        artigos_dict = self._executar_consulta_artigos(sql)
+        artigos_dto = ArtigoDTOMapper.to_artigo_busca_dto_list_from_dict(artigos_dict)
+        
+        logger.info(f"Encontrados {len(artigos_dto)} artigos com embeddings")
+        return artigos_dto

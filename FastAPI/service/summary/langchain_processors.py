@@ -38,7 +38,6 @@ class ChunkProcessor:
             else:
                 current_chunk = self._add_to_chunk(current_chunk, sentence)
         
-        # Adicionar último chunk
         if current_chunk.strip():
             chunks.append(self._create_chunk(current_chunk, doc_id, chunk_id))
         
@@ -47,7 +46,7 @@ class ChunkProcessor:
     def _should_create_new_chunk(self, current_chunk: str, sentence: str) -> bool:
         """Verifica se deve criar um novo chunk"""
         return (len(current_chunk + sentence) > self.config.MAX_CHUNK_SIZE and 
-                current_chunk)
+                bool(current_chunk))
     
     def _create_chunk(self, text: str, doc_id: str, chunk_id: int) -> Dict:
         """Cria um objeto chunk"""
