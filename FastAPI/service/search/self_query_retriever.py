@@ -106,12 +106,7 @@ class SelfQueryRetrieverService:
             description = field_config["description"]
             field_type = field_config["type"]
 
-            if field_type == "integer":
-                attr_type = "integer"
-            elif field_type == "float":
-                attr_type = "float"
-            else:
-                attr_type = "string"
+            attr_type = field_type
 
             attr_info = AttributeInfo(
                 name=name, description=description, type=attr_type
@@ -259,7 +254,7 @@ class SelfQueryRetrieverService:
                 metadata_field_info=self.attribute_infos,
                 vectorstore=vectorstore_temp,
                 verbose=True,
-                enable_limit=True,
+                enable_limit=False,
             )
             return retriever_temp
 

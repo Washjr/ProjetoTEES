@@ -128,7 +128,7 @@ class ArtigoController:
             return {
                 "query": termo,
                 "resultados": [
-                    {"documento": doc, "score": score} for doc, score in resultados
+                    resultados
                 ]
             }
         

@@ -12,7 +12,7 @@ class ArtigoDTOMapper:
             else (document.page_content, "")
         )
         return ArtigoBuscaDTO(
-            id=document.metadata.get("id", 0),
+            id=document.metadata.get("id", "0"),
             title=titulo,
             abstract=resumo,
             doi=document.metadata.get("doi", ""),
@@ -28,7 +28,7 @@ class ArtigoDTOMapper:
         return Document(
             page_content=f"{artigo.title}\n{artigo.abstract}",
             metadata={
-                "id": getattr(artigo, "id", 0),
+                "id": getattr(artigo, "id", "0"),
                 "doi": getattr(artigo, "doi", ""),
                 "year": getattr(artigo, "year", 0),
                 "journal": getattr(artigo, "journal", ""),
@@ -63,8 +63,7 @@ class ArtigoDTOMapper:
     @staticmethod
     def to_artigo_busca_dto_list_from_dict(artigos_dict: Dict[str, Dict]) -> List[ArtigoBuscaDTO]:
         artigos_dto = []
-        for artigo_id, artigo_data in artigos_dict.items():
-            artigo_data['id'] = artigo_id
+        for artigo_data in artigos_dict.values():
             dto = ArtigoDTOMapper.to_artigo_busca_dto_from_dict(artigo_data)
             artigos_dto.append(dto)
         return artigos_dto

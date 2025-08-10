@@ -2,34 +2,29 @@
   "metadata_fields": [
     {
       "name": "year",
-      "description": "Ano de publicação do artigo",
+      "description": "Ano de publicação do artigo no formato numérico (ex.: 2023). Use para filtrar artigos por ano específico ou por intervalo de anos.",
       "type": "integer"
     },
     {
       "name": "qualis",
-      "description": "Classificação Qualis do periódico. Um dos valores: ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C']",
+      "description": "Classificação Qualis do periódico, indicando a relevância acadêmica. Valores possíveis: ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C'], do mais alto (A1) ao mais baixo (C). Para relevância alta, use A1, A2 ou A3; para média, A4, B1 ou B2; para baixa, B3, B4 ou C. Comparações devem seguir essa hierarquia. Ao interpretar consultas que envolvam 'qualis X ou maior', retorne sempre um filtro usando o operador IN com todos os valores iguais ou superiores a X, conforme a ordem de relevância. Exemplo: para 'Qualis B2 ou superior', filtre por 'Comparison(comparator=<Comparator.IN: 'in'>, attribute='qualis', value=['B2', 'B1', 'A4', 'A3', 'A2', 'A1'])'.",
       "type": "string"
-    },
-    {
-      "name": "qualis_score",
-      "description": "Pontuação numérica do Qualis para comparações (A1=9, A2=8, A3=7, A4=6, B1=5, B2=4, B3=3, B4=2, C=1). Use este campo para filtros como 'B1 ou superior'. Use APENAS para comparações numéricas. A busca textual principal deve ser feita no conteúdo do documento. Para comparações, use apenas os operadores 'maior que' (gt) ou 'menor que' (lt). Por exemplo, para obter artigos com pontuação 4 ou mais, use o filtro 'maior que 3' (gt(3)).",
-      "type": "integer"
     },
     {
       "name": "journal",
-      "description": "Nome do periódico onde o artigo foi publicado",
+      "description": "Nome do periódico onde o artigo foi publicado, o nome do jornal pode estar abreviado ou completo. Ex: Entrada: `artigos sobre robótica na revista X` Saída esperada:` query='artigos sobre robótica', Comparison(comparator=<Comparator.CONTAIN: 'contain'> attribute='journal' value='X`)",
       "type": "string"
     },
     {
-      "name": "author_name",
-      "description": "Nome do autor/pesquisador do artigo.",
-      "type": "string"
+      "name": "authors",
+      "description": "Lista de autores do artigo. Ao filtrar, utilize o comparador 'like' com curingas para localizar o nome, permitindo encontrar autores com nomes do meio ou variações. O nome deve ser usado apenas para filtragem e não deve ser usado na query. Ex: Entrada: `artigos de robótica escritos por Y` Saída esperada:` query='robótica', Comparison(comparator=<Comparator.CONTAIN: 'contain'> attribute='authors' value='Y`)",
+      "type": "string or list[string]"
     },
     {
       "name": "doi",
-      "description": "DOI (Digital Object Identifier) do artigo",
+      "description": "Identificador DOI (Digital Object Identifier) único do artigo, usado para buscas exatas.",
       "type": "string"
     }
   ],
-  "document_content_description": "Artigos científicos com título, resumo e metadados de publicação acadêmica"
+  "document_content_description": "Artigos científicos contendo título, resumo e metadados de publicação acadêmica."
 }

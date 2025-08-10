@@ -94,8 +94,7 @@ class SelfQueryController:
     def busca_hibrida_artigos(
         self,
         query: str = Query(..., min_length=1, description="Consulta em linguagem natural"),
-        max_results: int = Query(20, ge=1, le=100, description="Número máximo de resultados"),
-        peso_semantico: float = Query(0.5, ge=0.0, le=1.0, description="Peso da busca semântica (0-1)")
+        max_results: int = Query(20, ge=1, le=100, description="Número máximo de resultados")
     ):
         """
         Endpoint para busca híbrida que combina:
@@ -114,7 +113,7 @@ class SelfQueryController:
         - "pesquisas com qualis melhor que B1 sobre COVID-19"
         """
         try:
-            return self.service.buscar_artigos_hibrido(query, max_results, peso_semantico)
+            return self.service.buscar_artigos_hibrido(query, max_results)
         
         except Exception as e:
             logger.error(f"Erro na busca híbrida: {e}")

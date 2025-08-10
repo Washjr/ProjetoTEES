@@ -194,16 +194,17 @@ class EmbeddingService(IEmbeddingService):
                         a.resumo as abstract,
                         a.doi,
                         a.ano as year,
-                        p.nome as journal,
-                        p.qualis,
-                        pesq.nome as author_name,
-                        (1 - (embedding <=> %s::vector)) as similarity_score
+                        per.nome as journal,
+                        per.qualis,
+                        p.id_pesquisador as author_id,
+                        p.nome as author_name,
+                        (1 - (a.embedding <=> %s::vector)) as similarity_score
                     FROM artigo a
-                    JOIN periodico p ON a.id_periodico = p.id_periodico  
-                    JOIN pesquisador pesq ON a.id_pesquisador = pesq.id_pesquisador
-                    WHERE embedding IS NOT NULL 
-                        AND (1 - (embedding <=> %s::vector)) >= %s
-                    ORDER BY embedding <=> %s::vector
+                    JOIN periodico per ON a.id_periodico = per.id_periodico  
+                    JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador
+                    WHERE a.embedding IS NOT NULL 
+                        AND (1 - (a.embedding <=> %s::vector)) >= %s
+                    ORDER BY a.embedding <=> %s::vector
                     LIMIT %s
                 """, (query_embedding, query_embedding, threshold, query_embedding, limit))
                 
@@ -269,6 +270,7 @@ class EmbeddingService(IEmbeddingService):
                 "year": row.get("year"),
                 "journal": row.get("journal"),
                 "qualis": row.get("qualis"),
+                "author_id": row.get("author_id"),
                 "author_name": row.get("author_name")
             }
             

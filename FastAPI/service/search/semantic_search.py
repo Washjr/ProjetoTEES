@@ -1,4 +1,5 @@
 import logging
+from math import log
 from typing import List, Dict
 
 from dao.artigo_dao import ArtigoDAO
@@ -49,25 +50,33 @@ class SemanticSearchService:
         for result in results:
             artigo_dict = self._convert_embedding_result_to_dict(result)
             artigo_dto = ArtigoDTOMapper.to_artigo_busca_dto_from_dict(artigo_dict)
-            artigo_dto.score = result.similarity_score  # Adicionar o score ao DTO
+            artigo_dto.score = result.similarity_score
             artigos_dto.append(artigo_dto)
         
         return artigos_dto
 
-    def _search_researchers_with_pgvector(self) -> List:
-        # Implement researcher search using pgvector if available in embedding service
-        # For now, return empty list as fallback
-        logger.warning("Researcher search with pgvector not implemented yet")
-        return []
-
     def _convert_embedding_result_to_dict(self, result: EmbeddingResult) -> Dict:
+        # Criar lista de autores a partir do author_name
+        authors = []
+        author_name = result.metadata.get('author_name')
+        author_id = result.metadata.get('author_id')
+        
+        if author_name:
+            authors.append({
+                "id": str(author_id) if author_id else "0",
+                "name": author_name
+            })
+        else:
+            logger.warning("Author name not found in embedding result")
+
         return {
-            'id': result.id,
+            'id': str(result.id), 
             'title': result.metadata.get('title'),
             'abstract': result.metadata.get('abstract'),
             'doi': result.metadata.get('doi'),
             'year': result.metadata.get('year'),
             'journal': result.metadata.get('journal'),
             'qualis': result.metadata.get('qualis'),
-            'author_name': result.metadata.get('author_name')
+            'authors': authors,
+            'score': result.similarity_score
         }
