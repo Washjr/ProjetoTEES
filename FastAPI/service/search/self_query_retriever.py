@@ -65,9 +65,8 @@ class SelfQueryRetrieverService:
         self.attribute_infos = self._build_attribute_infos()
 
         self.document_content_description = self.metadata_config.get(
-            "document_content_description",
-            "Artigos científicos com título, resumo e metadados de publicação acadêmica",
-        )
+            "document_content_description"
+        ) or "Artigos científicos com título, resumo e metadados de publicação acadêmica"
 
         prompt = get_query_constructor_prompt(
             self.document_content_description,
@@ -81,11 +80,14 @@ class SelfQueryRetrieverService:
 
     def _load_metadata_config(self) -> Dict[str, Any]:
         """Carrega configuração de metadados do arquivo JSON."""
+        relative_config_dir = "../../config"
+        config_filename = "metadata_config.json"
+        base_dir = os.path.dirname(__file__)
         try:
-            config_path = Path("config/metadata_config.json")
-            if not config_path.exists():
-                config_path = (
-                    Path(__file__).parent.parent / "config" / "metadata_config.json"
+            config_path = os.path.join(base_dir, relative_config_dir, config_filename)
+            if not os.path.exists(config_path):
+                logger.warning(
+                    f"Arquivo de configuração não encontrado em {config_path}"
                 )
 
             with open(config_path, "r", encoding="utf-8") as f:
@@ -111,8 +113,10 @@ class SelfQueryRetrieverService:
             attr_info = AttributeInfo(
                 name=name, description=description, type=attr_type
             )
-
             attribute_infos.append(attr_info)
+
+        logger.info(f"Found {len(attribute_infos)} attribute infos")
+        logger.info(f"Attribute infos: {attribute_infos}")
 
         return attribute_infos
 
@@ -129,6 +133,7 @@ class SelfQueryRetrieverService:
                 connection_string=self.connection_string,
                 embedding_function=self.embedding_service.embeddings_client,
                 collection_name=self.collection_name,
+                pre_delete_collection=True
             )
 
             try:
@@ -160,7 +165,7 @@ class SelfQueryRetrieverService:
             texts = [doc.page_content for doc in documents]
             metadatas = [doc.metadata for doc in documents]
 
-            vectorstore.delete_collection()
+            vectorstore.create_collection()
             vectorstore.add_texts(texts=texts, metadatas=metadatas)
 
             logger.info(f"Adicionados {len(texts)} documentos ao vectorstore")
@@ -247,6 +252,23 @@ class SelfQueryRetrieverService:
         """
         try:
             vectorstore_temp = self._create_vectorstore_with_embeddings(documents)
+
+            for attr_info in self.attribute_infos:
+                logger.warning(
+                    f"AttributeInfo - Name: {attr_info.name}, Description: {attr_info.description}, Type: {attr_info.type}"
+                )
+
+            # log document content description
+            logger.warning(
+                f"Document Content Description: {self.document_content_description}"
+            )
+
+            # log first document content description
+            if documents:
+                first_doc = documents[0]
+                logger.warning(
+                    f"First Document - ID: {first_doc.id}, Content: {first_doc}"
+                )
 
             retriever_temp = SelfQueryRetriever.from_llm(
                 llm=self.llm,

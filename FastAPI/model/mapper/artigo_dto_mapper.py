@@ -1,7 +1,7 @@
 from typing import List, Dict
 from model.dto.artigo_busca_dto import ArtigoBuscaDTO
 from langchain_core.documents import Document
-
+from service.embedding.embedding_service import EmbeddingResult
 
 class ArtigoDTOMapper:
     @staticmethod
@@ -12,39 +12,32 @@ class ArtigoDTOMapper:
             else (document.page_content, "")
         )
         return ArtigoBuscaDTO(
-            id=document.metadata.get("id", "0"),
+            id=document.metadata.get("id", "id Not Found on Document"),
             title=titulo,
             abstract=resumo,
-            doi=document.metadata.get("doi", ""),
+            doi=document.metadata.get("doi", "doi Not Found on Document"),
             year=document.metadata.get("year", 0),
-            journal=document.metadata.get("journal", ""),
-            qualis=document.metadata.get("qualis", ""),
-            authors=document.metadata.get("authors", []),
+            journal=document.metadata.get("journal", "journal Not Found on Document"),
+            qualis=document.metadata.get("qualis", "qualis Not Found on Document"),
+            authors=document.metadata.get("authors", ["authors Not Found on Document"]),
             score=document.metadata.get("score", None),
         )
 
     @staticmethod
     def to_artigo_selfquery_dto(artigo: ArtigoBuscaDTO) -> Document:
         return Document(
+            id=artigo.id,
             page_content=f"{artigo.title}\n{artigo.abstract}",
             metadata={
-                "id": getattr(artigo, "id", "0"),
-                "doi": getattr(artigo, "doi", ""),
+                "id": getattr(artigo, "id", "id Not Found on ArtigoBuscaDTO"),
+                "doi": getattr(artigo, "doi", "doi Not Found on ArtigoBuscaDTO"),
                 "year": getattr(artigo, "year", 0),
-                "journal": getattr(artigo, "journal", ""),
-                "qualis": getattr(artigo, "qualis", ""),
-                "authors": getattr(artigo, "authors", []),
+                "journal": getattr(artigo, "journal", "journal Not Found on ArtigoBuscaDTO"),
+                "qualis": getattr(artigo, "qualis", "qualis Not Found on ArtigoBuscaDTO"),
+                "authors": getattr(artigo, "authors", ["authors Not Found on ArtigoBuscaDTO"]),
                 "score": getattr(artigo, "score", None),
             },
         )
-
-    @staticmethod
-    def to_artigo_busca_dto_list(documents: list[Document]) -> list[ArtigoBuscaDTO]:
-        return [ArtigoDTOMapper.to_artigo_busca_dto(doc) for doc in documents]
-
-    @staticmethod
-    def to_document_list(artigos: list[ArtigoBuscaDTO]) -> list[Document]:
-        return [ArtigoDTOMapper.to_artigo_selfquery_dto(artigo) for artigo in artigos]
 
     @staticmethod
     def to_artigo_busca_dto_from_dict(data: Dict) -> ArtigoBuscaDTO:
@@ -56,8 +49,25 @@ class ArtigoDTOMapper:
             year=data.get("year"),
             journal=data.get("journal"),
             qualis=data.get("qualis"),
-            authors=[author["name"] for author in data.get("authors", [])],
+            authors=data.get("authors", []),
             score=data.get("score")
+        )
+    
+    @staticmethod
+    def to_artigo_busca_dto_from_embedding_result(result: EmbeddingResult) -> ArtigoBuscaDTO:
+        author_name = result.metadata.get("author_name")
+        authors = [author_name] if author_name is not None else ["authors Not Found on EmbeddingResult"]
+        
+        return ArtigoBuscaDTO(
+            id=str(result.id),
+            title=result.metadata.get("title", "Title Not Found on EmbeddingResult"),
+            abstract=result.metadata.get("abstract", "Abstract Not Found on EmbeddingResult"),
+            doi=result.metadata.get("doi", "DOI Not Found on EmbeddingResult"),
+            year=result.metadata.get("year", 0),
+            journal=result.metadata.get("journal", "Journal Not Found on EmbeddingResult"),
+            qualis=result.metadata.get("qualis", "Qualis Not Found on EmbeddingResult"),
+            authors=authors,
+            score=result.metadata.get("score", None),
         )
 
     @staticmethod
@@ -78,7 +88,7 @@ class ArtigoDTOMapper:
             "year": artigo.year,
             "journal": artigo.journal,
             "qualis": artigo.qualis,
-            "authors": [{"name": author} for author in (artigo.authors or [])],
+            "authors": artigo.authors,
             "score": artigo.score,
         }
 
@@ -89,3 +99,11 @@ class ArtigoDTOMapper:
         return [
             ArtigoDTOMapper.to_dict_from_artigo_busca_dto(artigo) for artigo in artigos
         ]
+
+    @staticmethod
+    def to_artigo_busca_dto_list(documents: list[Document]) -> list[ArtigoBuscaDTO]:
+        return [ArtigoDTOMapper.to_artigo_busca_dto(doc) for doc in documents]
+
+    @staticmethod
+    def to_document_list(artigos: list[ArtigoBuscaDTO]) -> list[Document]:
+        return [ArtigoDTOMapper.to_artigo_selfquery_dto(artigo) for artigo in artigos]

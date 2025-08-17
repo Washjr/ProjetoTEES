@@ -35,67 +35,10 @@ class SelfQueryService:
         """
 
         try:
-            config_path = os.path.join(os.path.dirname(__file__), "..", "config", "metadata_config.json")
-            with open(config_path, "r", encoding="utf-8") as f:
-                metadata_config = json.load(f)
-            return metadata_config
+            return self.self_query.metadata_config
         except Exception as e:
             logger.error(f"Erro ao carregar metadata_config.json: {e}")
             raise RuntimeError(f"Erro ao listar filtros: {str(e)}")
-
-    def debug_query_constructor(self, query: str) -> Dict[str, Any]:
-        """
-        Debuga o query_constructor para ver a query estruturada gerada.
-        
-        Args:
-            query: Consulta em linguagem natural para debug
-            
-        Returns:
-            Informações sobre a query estruturada gerada
-        """
-        try:
-            # Inicializar o retriever se necessário
-            if self.self_query.retriever is None:
-                self.self_query.initialize_retriever(limit_documents=1)
-            
-            # Executar apenas o query_constructor
-            structured_query = self.self_query.query_constructor.invoke({"query": query})
-            
-            # Preparar resposta detalhada
-            response = {
-                "original_query": query,
-                "success": True,
-                "structured_query": {
-                    "query": structured_query.query if hasattr(structured_query, 'query') else None,
-                    "filter": str(structured_query.filter) if hasattr(structured_query, 'filter') else None,
-                    "limit": structured_query.limit if hasattr(structured_query, 'limit') else None
-                }
-            }
-            
-            # Adicionar análise de filtros
-            if hasattr(structured_query, 'filter') and structured_query.filter:
-                response["filter_analysis"] = {
-                    "filter_type": type(structured_query.filter).__name__,
-                    "has_filters": True,
-                    "filter_details": str(structured_query.filter)
-                }
-            else:
-                response["filter_analysis"] = {
-                    "has_filters": False,
-                    "message": "Nenhum filtro foi extraído da consulta"
-                }
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Erro no debug do query constructor: {e}")
-            return {
-                "original_query": query,
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "message": "Erro ao processar a consulta com o query_constructor"
-            }
 
     def buscar_artigos_hibrido(
         self, 
@@ -143,7 +86,7 @@ class SelfQueryService:
                     query, 
                     max_results
                 )
-                
+
             return {
                 "query": query,
                 "structured_query": {
@@ -181,7 +124,7 @@ class SelfQueryService:
 
         def add_unique(artigos):
             for artigo in artigos:
-                artigo_id = artigo.doi or artigo.id or f"{artigo.title}_{getattr(artigo, 'author_name', '')}"
+                artigo_id = artigo.doi or artigo.id
                 unique_id = artigo.doi if artigo.doi else artigo_id
                 if unique_id not in ids_vistos:
                     ids_vistos.add(unique_id)
@@ -218,7 +161,6 @@ class SelfQueryService:
         
         try:
             documents = ArtigoDTOMapper.to_document_list(resultados_combinados)
-            
             if documents:
                 retriever = self.self_query.create_temporary_retriever(documents)
                 if retriever:

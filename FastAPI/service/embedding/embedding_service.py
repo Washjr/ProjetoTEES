@@ -261,9 +261,10 @@ class EmbeddingService(IEmbeddingService):
     def _convert_to_embedding_results(self, raw_results: List[Dict]) -> List[EmbeddingResult]:
         """Converte resultados do banco para objetos EmbeddingResult"""
         results = []
-        
+
         for row in raw_results:
             metadata = {
+                "id": row["id"],
                 "title": row.get("title"),
                 "abstract": row.get("abstract"),
                 "doi": row.get("doi"),

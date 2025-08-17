@@ -48,35 +48,8 @@ class SemanticSearchService:
         
         artigos_dto = []
         for result in results:
-            artigo_dict = self._convert_embedding_result_to_dict(result)
-            artigo_dto = ArtigoDTOMapper.to_artigo_busca_dto_from_dict(artigo_dict)
+            artigo_dto = ArtigoDTOMapper.to_artigo_busca_dto_from_embedding_result(result)
             artigo_dto.score = result.similarity_score
             artigos_dto.append(artigo_dto)
         
         return artigos_dto
-
-    def _convert_embedding_result_to_dict(self, result: EmbeddingResult) -> Dict:
-        # Criar lista de autores a partir do author_name
-        authors = []
-        author_name = result.metadata.get('author_name')
-        author_id = result.metadata.get('author_id')
-        
-        if author_name:
-            authors.append({
-                "id": str(author_id) if author_id else "0",
-                "name": author_name
-            })
-        else:
-            logger.warning("Author name not found in embedding result")
-
-        return {
-            'id': str(result.id), 
-            'title': result.metadata.get('title'),
-            'abstract': result.metadata.get('abstract'),
-            'doi': result.metadata.get('doi'),
-            'year': result.metadata.get('year'),
-            'journal': result.metadata.get('journal'),
-            'qualis': result.metadata.get('qualis'),
-            'authors': authors,
-            'score': result.similarity_score
-        }

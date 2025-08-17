@@ -20,7 +20,7 @@ class ArtigoDAO:
 
     def __del__(self):
         Conexao.devolver_conexao(self.conexao)
-    
+
     def _executar_consulta_artigos(self, sql: str, parametros: tuple = ()) -> Dict[str, Dict]:
         """
         Executa consulta SQL e agrupa resultados por artigo para lidar com múltiplos autores.
@@ -40,12 +40,12 @@ class ArtigoDAO:
             artigos_dict = {}
             for linha in linhas:
                 (id_artigo, title, journal, year, abstract, doi, qualis, 
-                 author_id, author_name) = linha
+                    author_id, author_name) = linha
                 
-                normalized_title = title.strip().lower()
+                normalized_title = title.strip().lower() if title else ""
                 normalized_journal = journal.strip().lower() if journal else ""
                 normalized_year = str(year).strip() if year else ""
-                normalized_doi = (doi.strip().lower() if doi else "")
+                normalized_doi = doi.strip().lower() if doi else ""
 
                 key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
 
@@ -61,21 +61,14 @@ class ArtigoDAO:
                         "authors": []
                     }
                 
-                author_exists = any(
-                    author["id"] == str(author_id) 
-                    for author in artigos_dict[key]["authors"]
-                )
-                if not author_exists:
-                    artigos_dict[key]["authors"].append({
-                        "id": str(author_id),
-                        "name": author_name
-                    })
-            
+                if author_name and not any(author == author_name for author in artigos_dict[key]["authors"]):
+                    artigos_dict[key]["authors"].append(author_name)
+
             return artigos_dict
         except Exception as e:
             logger.exception("Erro ao executar consulta de artigos")
             raise RuntimeError(f"Erro ao executar consulta de artigos: {e}")
-
+    
     def listar_artigos(self) -> List[ArtigoBuscaDTO]: 
         sql = (
             "SELECT "

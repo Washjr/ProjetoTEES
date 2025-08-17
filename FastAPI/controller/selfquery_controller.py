@@ -30,18 +30,6 @@ class SelfQueryController:
         )
 
         self.router.add_api_route(
-            "/debug_query",
-            self.debug_query_constructor,
-            response_model=None,
-            methods=["GET"],
-            summary="Debug do Query Constructor",
-            description=(
-                "Endpoint para verificar a query estruturada gerada pelo query_constructor "
-                "a partir de uma consulta em linguagem natural, sem executar a busca."
-            )
-        )
-
-        self.router.add_api_route(
             "/busca_hibrida",
             self.busca_hibrida_artigos,
             response_model=None,
@@ -70,26 +58,6 @@ class SelfQueryController:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Erro ao listar filtros: {str(e)}"
             )
-
-    def debug_query_constructor(
-        self,
-        query: str = Query(..., min_length=1, description="Consulta em linguagem natural para debug")
-    ):
-        """
-        Endpoint para debugar o query_constructor e ver a query estruturada gerada.
-        
-        Retorna informações sobre:
-        - Query original
-        - Query estruturada gerada
-        - Filtros aplicados
-        - Metadados extraídos
-        
-        Exemplos de uso:
-        - "artigos de machine learning publicados após 2020"
-        - "trabalhos em periódicos A1 sobre redes neurais"
-        - "pesquisas com qualis melhor que B1"
-        """
-        return self.service.debug_query_constructor(query)
 
     def busca_hibrida_artigos(
         self,
