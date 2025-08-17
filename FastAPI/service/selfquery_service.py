@@ -7,11 +7,8 @@ from dao.artigo_dao import ArtigoDAO
 from service.embedding import EmbeddingService
 from service.search.semantic_search import SemanticSearchService
 from service.search.self_query_retriever import SelfQueryRetrieverService
-import json
-import os
 
 logger = logging.getLogger(__name__)
-
 
 class SelfQueryService:
     """
@@ -25,15 +22,7 @@ class SelfQueryService:
         self.semantic = SemanticSearchService()
         self.self_query = SelfQueryRetrieverService()
 
-    def obter_filtros_disponiveis(self) -> Dict[str, Any]:
-        """
-        Retorna informações sobre os filtros/metadados disponíveis para self-query,
-        diretamente do arquivo metadata_config.json.
-        
-        Returns:
-            Informações sobre campos disponíveis para filtros
-        """
-
+    def get_metadata_config(self) -> Dict[str, Any]:
         try:
             return self.self_query.metadata_config
         except Exception as e:
@@ -87,6 +76,15 @@ class SelfQueryService:
                     max_results
                 )
 
+            # Separar resultados em listas distintas: semânticos e por termos
+            resultados_semanticos_finais = []
+            resultados_termos_finais = []
+            for artigo in resultados_combinados:
+                if getattr(artigo, "score", None) is not None:
+                    resultados_semanticos_finais.append(artigo)
+                else:
+                    resultados_termos_finais.append(artigo)
+
             return {
                 "query": query,
                 "structured_query": {
@@ -96,7 +94,10 @@ class SelfQueryService:
                 "search_stats": {
                     "total_resultados": len(resultados_combinados)
                 },
-                "results": resultados_combinados
+                "results": {
+                    "termos": resultados_termos_finais,
+                    "semanticos": resultados_semanticos_finais
+                }
             }
             
         except Exception as e:

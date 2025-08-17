@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import sys
-from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from model.dto.artigo_busca_dto import ArtigoBuscaDTO
@@ -136,20 +135,7 @@ class SelfQueryRetrieverService:
                 pre_delete_collection=True
             )
 
-            try:
-                test_results = vectorstore.similarity_search("test", k=1)
-                if len(test_results) == 0:
-                    logger.info(
-                        "Tabela existe mas parece estar vazia, populando com dados dos artigos..."
-                    )
-                    self._refresh_vectorstore_with_docs(vectorstore, documents)
-                else:
-                    logger.info(
-                        f"Vectorstore já contém {len(test_results)} documentos (teste)"
-                    )
-            except Exception as e:
-                logger.info(f"Criando novo vectorstore com dados dos artigos: {e}")
-                self._refresh_vectorstore_with_docs(vectorstore, documents)
+            self._refresh_vectorstore_with_docs(vectorstore, documents)
 
             logger.info("Vectorstore configurado para usar embeddings da tabela artigo")
             return vectorstore

@@ -50,7 +50,7 @@ class SelfQueryController:
         como ano, qualis, periódico, autor, etc.
         """
         try:
-            return self.service.obter_filtros_disponiveis()
+            return self.service.get_metadata_config()
         
         except Exception as e:
             logger.error(f"Erro ao listar filtros disponíveis: {e}")
@@ -73,7 +73,6 @@ class SelfQueryController:
         Args:
             query: Consulta em linguagem natural
             max_results: Número máximo de resultados
-            peso_semantico: Peso para combinar resultados (0=só termos, 1=só semântica)
         
         Exemplos:
         - "artigos de machine learning publicados após 2020"
