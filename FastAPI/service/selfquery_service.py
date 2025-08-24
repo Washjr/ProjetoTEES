@@ -1,5 +1,8 @@
 import logging
+from re import I
 from typing import List, Dict, Any
+
+from yarg import get
 
 from model.dto.artigo_busca_dto import ArtigoBuscaDTO
 from model.mapper.artigo_dto_mapper import ArtigoDTOMapper
@@ -7,6 +10,8 @@ from dao.artigo_dao import ArtigoDAO
 from service.embedding import EmbeddingService
 from service.search.semantic_search import SemanticSearchService
 from service.search.self_query_retriever import SelfQueryRetrieverService
+from service.utils.PostgreSQLFilterTranslator import PostgreSQLFilterTranslator
+from service.utils.SelfQueryFilterTranslator import get_where_clause
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +26,7 @@ class SelfQueryService:
         self.embedding_service = EmbeddingService()
         self.semantic = SemanticSearchService()
         self.self_query = SelfQueryRetrieverService()
+        self.sql_query_translator = PostgreSQLFilterTranslator()
 
     def get_metadata_config(self) -> Dict[str, Any]:
         try:
@@ -52,38 +58,25 @@ class SelfQueryService:
             structured_query = self.self_query.query_constructor.invoke({"query": query})
             content_query = structured_query.query if hasattr(structured_query, 'query') and structured_query.query else query
             filters = structured_query.filter if hasattr(structured_query, 'filter') else None
-            
+
             logger.info(f"Query separada - Conteúdo: '{content_query}', Filtros: {filters}")
-            
-            # Passo 2: Realizar buscas por termos e semântica
-            resultados_termos = self.dao.buscar_por_termo(content_query)
-            resultados_semanticos = self.semantic.semantic_search(content_query, k=max_results, tipo="artigo")
-            
-            # Passo 3: Combinar resultados
+
+            # Passo  2: Traduzir filtros para SQL
+            filter_query = ""
+            if filters:
+                filter_query = get_where_clause(str(filters), self.sql_query_translator)
+
+            # Passo 3: Realizar buscas por termos e semântica com filtros traduzidos
+            resultados_termos = self.dao.buscar_por_termo(content_query, filter_query)
+            resultados_semanticos = self.semantic.semantic_search(content_query, k=max_results, filter=filter_query)
+
+            # Passo 4: Combinar resultados
             resultados_combinados = self._combinar_resultados(
                 resultados_termos, 
                 resultados_semanticos
             )
             
             logger.info(f"Total de resultados combinados: {len(resultados_combinados)}")
-            
-            # Passo 4: Aplicar filtros se existirem
-            if filters:
-                resultados_combinados = self._aplicar_filtros_nas_listas(
-                    resultados_combinados, 
-                    filters, 
-                    query, 
-                    max_results
-                )
-
-            # Separar resultados em listas distintas: semânticos e por termos
-            resultados_semanticos_finais = []
-            resultados_termos_finais = []
-            for artigo in resultados_combinados:
-                if getattr(artigo, "score", None) is not None:
-                    resultados_semanticos_finais.append(artigo)
-                else:
-                    resultados_termos_finais.append(artigo)
 
             return {
                 "query": query,
@@ -95,8 +88,8 @@ class SelfQueryService:
                     "total_resultados": len(resultados_combinados)
                 },
                 "results": {
-                    "termos": resultados_termos_finais,
-                    "semanticos": resultados_semanticos_finais
+                    "termos": resultados_termos,
+                    "semanticos": resultados_semanticos
                 }
             }
             
@@ -135,41 +128,5 @@ class SelfQueryService:
         add_unique(resultados_semanticos)
 
         logger.debug(f"Combinados {len(resultados_combinados)} artigos únicos de {len(resultados_termos)} termos + {len(resultados_semanticos)} semânticos")
-        
-        return resultados_combinados
-
-    def _aplicar_filtros_nas_listas(
-        self, 
-        resultados_combinados: List[ArtigoBuscaDTO], 
-        filters: Any, 
-        query: str, 
-        max_results: int
-    ) -> List[ArtigoBuscaDTO]:
-        """
-        Aplica filtros automáticos na lista de resultados.
-        
-        Args:
-            resultados_combinados: Lista com todos os resultados combinados
-            filters: Filtros extraídos da query
-            query: Query original
-            max_results: Máximo de resultados
-            
-        Returns:
-            Lista filtrada
-        """
-        if not filters or not resultados_combinados:
-            return resultados_combinados
-        
-        try:
-            documents = ArtigoDTOMapper.to_document_list(resultados_combinados)
-            if documents:
-                retriever = self.self_query.create_temporary_retriever(documents)
-                if retriever:
-                    retriever.search_kwargs = {'k': max_results}
-                    docs_filtrados = retriever.invoke(query)
-                    return ArtigoDTOMapper.to_artigo_busca_dto_list(docs_filtrados)
-                    
-        except Exception as e:
-            logger.warning(f"Erro ao aplicar filtros: {e}. Retornando resultados sem filtros.")
         
         return resultados_combinados

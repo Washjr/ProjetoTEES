@@ -123,7 +123,7 @@ class ArtigoController:
         k: int = Query(10, ge=1, le=50)
     ):        
         try:
-            resultados = self.semantic.semantic_search(termo, k, tipo="artigo")
+            resultados = self.semantic.semantic_search(termo, k)
             
             return {
                 "query": termo,

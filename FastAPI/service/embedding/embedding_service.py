@@ -1,6 +1,6 @@
 import hashlib
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
 import psycopg2
@@ -15,7 +15,7 @@ from .interface import IEmbeddingService
 
 OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSION = 1536
-SIMILARITY_THRESHOLD = 0.7
+SIMILARITY_THRESHOLD = 0.3
 CACHE_SIZE = 1000
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EmbeddingResult:
     """Resultado de busca por similaridade"""
+
     id: int
     content: str
     similarity_score: float
@@ -35,7 +36,7 @@ class EmbeddingService(IEmbeddingService):
     Serviço centralizado para gerenciamento de embeddings usando PGVector.
     Responsável por criar, armazenar e buscar embeddings de documentos.
     """
-    
+
     def __init__(self):
         self._validate_configuration()
         self.embeddings_client = self._create_embeddings_client()
@@ -50,7 +51,7 @@ class EmbeddingService(IEmbeddingService):
     def _create_embeddings_client(self) -> OpenAIEmbeddings:
         return OpenAIEmbeddings(
             model=OPENAI_EMBEDDING_MODEL,
-            api_key=SecretStr(configuracoes.OPENAI_API_KEY)
+            api_key=SecretStr(configuracoes.OPENAI_API_KEY),
         )
 
     def generate_embedding(self, text: str) -> List[float]:
@@ -62,7 +63,7 @@ class EmbeddingService(IEmbeddingService):
             raise ValueError("Texto não pode ser vazio")
 
         text_hash = self._generate_text_hash(text)
-        
+
         if text_hash in self._cache:
             return self._cache[text_hash]
 
@@ -70,7 +71,7 @@ class EmbeddingService(IEmbeddingService):
             embedding = self.embeddings_client.embed_query(text)
             self._update_cache(text_hash, embedding)
             return embedding
-            
+
         except Exception as e:
             logger.error(f"Erro ao gerar embedding: {e}")
             raise RuntimeError(f"Falha na geração de embedding: {str(e)}")
@@ -82,24 +83,26 @@ class EmbeddingService(IEmbeddingService):
         try:
             embedding = self.generate_embedding(text)
             return self._save_embedding_to_database(article_id, embedding)
-            
+
         except Exception as e:
             logger.error(f"Erro ao armazenar embedding do artigo {article_id}: {e}")
             return False
 
     def search_similar_articles(
-        self, 
-        query_text: str, 
-        limit: int = 10, 
-        threshold: float = SIMILARITY_THRESHOLD
+        self,
+        query_text: str,
+        limit: int = 10,
+        threshold: float = SIMILARITY_THRESHOLD,
+        filter: Optional[str] = None,
     ) -> List[EmbeddingResult]:
         """
         Busca artigos similares usando similaridade por cosseno.
         """
         try:
             query_embedding = self.generate_embedding(query_text)
-            return self._execute_similarity_search(query_embedding, limit, threshold)
-            
+            return self._execute_similarity_search(
+                query_embedding, limit, threshold, filter
+            )
         except Exception as e:
             logger.error(f"Erro na busca por similaridade: {e}")
             return []
@@ -110,16 +113,16 @@ class EmbeddingService(IEmbeddingService):
         Retorna estatísticas do processo.
         """
         stats = {"success": 0, "errors": 0, "skipped": 0}
-        
+
         try:
             articles = self._fetch_articles_without_embeddings()
-            
+
             for article in articles:
                 if self._process_article_embedding(article):
                     stats["success"] += 1
                 else:
                     stats["errors"] += 1
-                    
+
         except Exception as e:
             logger.error(f"Erro ao atualizar embeddings: {e}")
             stats["errors"] += 1
@@ -142,75 +145,90 @@ class EmbeddingService(IEmbeddingService):
                         COUNT(*) - COUNT(embedding) as articles_without_embeddings
                     FROM artigo
                 """)
-                
+
                 result = cursor.fetchone()
                 return dict(result) if result else {}
-                
+
         except Exception as e:
             logger.error(f"Erro ao obter estatísticas: {e}")
             return {}
 
     def _generate_text_hash(self, text: str) -> str:
         """Gera hash único para o texto"""
-        return hashlib.md5(text.encode('utf-8')).hexdigest()
+        return hashlib.md5(text.encode("utf-8")).hexdigest()
 
     def _update_cache(self, text_hash: str, embedding: List[float]) -> None:
         """Atualiza cache mantendo tamanho máximo"""
         if len(self._cache) >= CACHE_SIZE:
             oldest_key = next(iter(self._cache))
             del self._cache[oldest_key]
-        
+
         self._cache[text_hash] = embedding
 
-    def _save_embedding_to_database(self, article_id: int, embedding: List[float]) -> bool:
+    def _save_embedding_to_database(
+        self, article_id: int, embedding: List[float]
+    ) -> bool:
         """Salva embedding no banco de dados"""
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(
                     "UPDATE artigo SET embedding = %s WHERE id_artigo = %s",
-                    (embedding, article_id)
+                    (embedding, article_id),
                 )
                 self.connection.commit()
                 return cursor.rowcount > 0
-                
+
         except psycopg2.Error as e:
             logger.error(f"Erro ao salvar embedding no banco: {e}")
             self.connection.rollback()
             return False
 
     def _execute_similarity_search(
-        self, 
-        query_embedding: List[float], 
-        limit: int, 
-        threshold: float
+        self,
+        query_embedding: List[float],
+        limit: int,
+        threshold: float,
+        filter: Optional[str] = None,
     ) -> List[EmbeddingResult]:
         """Executa busca por similaridade usando PGVector"""
         try:
             with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute("""
-                    SELECT 
-                        a.id_artigo as id,
-                        a.nome as title,
-                        a.resumo as abstract,
-                        a.doi,
-                        a.ano as year,
-                        per.nome as journal,
-                        per.qualis,
-                        p.id_pesquisador as author_id,
-                        p.nome as author_name,
-                        (1 - (a.embedding <=> %s::vector)) as similarity_score
-                    FROM artigo a
-                    JOIN periodico per ON a.id_periodico = per.id_periodico  
-                    JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador
-                    WHERE a.embedding IS NOT NULL 
-                        AND (1 - (a.embedding <=> %s::vector)) >= %s
-                    ORDER BY a.embedding <=> %s::vector
-                    LIMIT %s
-                """, (query_embedding, query_embedding, threshold, query_embedding, limit))
+                embedding_str = str(query_embedding)
                 
+                base_query = (
+                    "WITH base AS ("
+                    "    SELECT "
+                    "        a.id_artigo as id, "
+                    "        a.nome as title, "
+                    "        per.nome as journal, "
+                    "        a.ano as year, "
+                    "        a.resumo as abstract, "
+                    "        a.doi, "
+                    "        per.qualis, "
+                    "        p.id_pesquisador as author_id, "
+                    "        p.nome as authors, "
+                    f"        (1 - (a.embedding <=> '{embedding_str}'::vector)) AS similarity_score "
+                    "    FROM artigo a "
+                    "    JOIN periodico per ON a.id_periodico = per.id_periodico "
+                    "    JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
+                    "    WHERE a.embedding IS NOT NULL "
+                    f"        AND (1 - (a.embedding <=> '{embedding_str}'::vector)) >= {threshold}"
+                    ") "
+                    "SELECT * FROM base "
+                )
+
+                if filter:
+                    base_query += f"WHERE ({filter}) "
+
+                base_query += f"ORDER BY similarity_score DESC LIMIT {limit}"
+
+                print(f"Executando query com threshold: {threshold}, limit: {limit}")
+                cursor.execute(base_query)
                 results = cursor.fetchall()
-                return self._convert_to_embedding_results(results)
+                print(f"Resultados encontrados: {len(results)}")
                 
+                return self._convert_to_embedding_results(results)
+
         except psycopg2.Error as e:
             logger.error(f"Erro na busca por similaridade: {e}")
             return []
@@ -225,9 +243,9 @@ class EmbeddingService(IEmbeddingService):
                     WHERE embedding IS NULL 
                         AND nome IS NOT NULL
                 """)
-                
+
                 return cursor.fetchall()
-                
+
         except psycopg2.Error as e:
             logger.error(f"Erro ao buscar artigos sem embeddings: {e}")
             return []
@@ -237,7 +255,7 @@ class EmbeddingService(IEmbeddingService):
         try:
             content = self._build_article_content(article)
             return self.store_article_embedding(article["id_artigo"], content)
-            
+
         except Exception as e:
             logger.error(f"Erro ao processar artigo {article.get('id_artigo')}: {e}")
             return False
@@ -246,23 +264,28 @@ class EmbeddingService(IEmbeddingService):
         """Constrói conteúdo textual do artigo para embedding"""
         title = (article.get("nome") or "").strip()
         abstract = (article.get("resumo") or "").strip()
-        
+
         if not title and not abstract:
             raise ValueError("Artigo sem título ou resumo")
-        
+
         content_parts = []
         if title:
             content_parts.append(f"Título: {title}")
         if abstract:
             content_parts.append(f"Resumo: {abstract}")
-            
+
         return " | ".join(content_parts)
 
-    def _convert_to_embedding_results(self, raw_results: List[Dict]) -> List[EmbeddingResult]:
+    def _convert_to_embedding_results(
+        self, raw_results: List[Dict]
+    ) -> List[EmbeddingResult]:
         """Converte resultados do banco para objetos EmbeddingResult"""
         results = []
 
         for row in raw_results:
+            authors_str = row.get("authors", "")
+            authors_list = [authors_str] if authors_str else []
+
             metadata = {
                 "id": row["id"],
                 "title": row.get("title"),
@@ -272,21 +295,22 @@ class EmbeddingService(IEmbeddingService):
                 "journal": row.get("journal"),
                 "qualis": row.get("qualis"),
                 "author_id": row.get("author_id"),
-                "author_name": row.get("author_name")
+                "authors": authors_list,
             }
-            
+
             result = EmbeddingResult(
                 id=row["id"],
                 content=f"{row.get('title', '')} - {row.get('abstract', '')}",
                 similarity_score=float(row["similarity_score"]),
-                metadata=metadata
+                metadata=metadata,
             )
-            
+
             results.append(result)
-        
+
         return results
 
     def __del__(self):
         """Devolve conexão ao pool"""
-        if hasattr(self, 'connection'):
+        if hasattr(self, "connection"):
+            Conexao.devolver_conexao(self.connection)
             Conexao.devolver_conexao(self.connection)

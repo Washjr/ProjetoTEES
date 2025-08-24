@@ -55,9 +55,10 @@ class ArtigoDTOMapper:
     
     @staticmethod
     def to_artigo_busca_dto_from_embedding_result(result: EmbeddingResult) -> ArtigoBuscaDTO:
-        author_name = result.metadata.get("author_name")
-        authors = [author_name] if author_name is not None else ["authors Not Found on EmbeddingResult"]
-        
+        authors = result.metadata.get("authors")
+        if authors is None:
+            authors = ["authors Not Found on EmbeddingResult"]
+
         return ArtigoBuscaDTO(
             id=str(result.id),
             title=result.metadata.get("title", "Title Not Found on EmbeddingResult"),

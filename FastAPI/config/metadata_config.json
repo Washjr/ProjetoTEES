@@ -17,7 +17,7 @@
     },
     {
       "name": "authors",
-      "description": "Lista de autores do artigo. Ao filtrar, utilize o comparador 'like' com curingas para localizar o nome, permitindo encontrar autores com nomes do meio ou variações. O nome deve ser usado apenas para filtragem e não deve ser usado na query. Ex: Entrada: `artigos de robótica escritos por Y` Saída esperada:` query='robótica', Comparison(comparator=<Comparator.CONTAIN: 'contain'> attribute='authors' value='Y`)",
+      "description": "Nomes dos autores do artigo. Quando um nome de autor é mencionado na busca, como 'artigos de X por Y', o nome 'Y' deve ser usado apenas para filtrar pelo autor, e 'X' deve ser a query. Use o comparador 'like' para permitir buscas parciais ou por variações do nome. Exemplo: para a busca 'Artigos sobre computação do autor João Borges', a query deve ser 'computação' e o filtro 'Comparison(comparator=<Comparator.LIKE: 'like'> attribute='authors' value='João Borges`)'. Sempre use LIKE para o atributo authors. Make sure that you filter for authors only use LIKE do comparison.",
       "type": "string or list[string]"
     },
     {
