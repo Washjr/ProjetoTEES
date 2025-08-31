@@ -2,6 +2,7 @@ import logging
 from re import I
 from typing import List, Dict, Any
 
+from service.utils.InterfaceFilterTranslator import InterfaceFilterTranslator
 from model.dto.artigo_busca_dto import ArtigoBuscaDTO
 from dao.artigo_dao import ArtigoDAO
 from service.embedding import EmbeddingService
@@ -25,6 +26,7 @@ class SelfQueryService:
         self.semantic = SemanticSearchService()
         self.self_query = SelfQueryRetrieverService()
         self.sql_query_translator = PostgreSQLFilterTranslator()
+        self.interface_translator = InterfaceFilterTranslator()
 
     def get_metadata_config(self) -> Dict[str, Any]:
         try:
@@ -69,8 +71,10 @@ class SelfQueryService:
 
             # Passo  2: Traduzir filtros para SQL
             filter_query = ""
+            interface_filter = ""
             if filters:
                 filter_query = get_where_clause(str(filters), self.sql_query_translator)
+                interface_filter = get_where_clause(str(filters), self.interface_translator)
 
             # Passo 3: Realizar buscas por termos e semântica com filtros traduzidos
             resultados_termos = self.dao.buscar_por_termo(content_query, filter_query)
@@ -87,7 +91,8 @@ class SelfQueryService:
                 "query": query,
                 "structured_query": {
                     "content_query": content_query,
-                    "filters": str(filters) if filters else None,
+                    "filter_interface": interface_filter if filters else None,
+                    "filter_selfquery": filter_query if filters else None,
                 },
                 "search_stats": {
                     "total_resultados": len(resultados_termos)
