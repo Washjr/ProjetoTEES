@@ -5,13 +5,46 @@ export interface ArticleData {
   year: number;
   abstract: string;
   doi?: string | null;
-  authors: Array<{ id: string; name: string }>;
+  authors: string[] | Array<{ id: string; name: string }>;
   qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'SQ';
+  score?: number | null;
 }
 
 export interface SemanticSearchResult {
-  documento: ArticleData;
+  documento?: ArticleData;
   score: number;
+  // Permitir que os dados semânticos venham diretamente no resultado
+  id?: string;
+  title?: string;
+  journal?: string;
+  year?: number;
+  abstract?: string;
+  doi?: string | null;
+  authors?: string[];
+  qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'SQ';
+}
+
+export interface StructuredQuery {
+  content_query: string;
+  filter_interface: string;
+  filter_selfquery: string;
+}
+
+export interface SearchStats {
+  total_resultados: number;
+}
+
+export interface SearchResults {
+  termos: ArticleData[];
+  semanticos: SemanticSearchResult[];
+}
+
+// Nova interface para a resposta combinada da API
+export interface NewApiResponse {
+  query: string;
+  structured_query: StructuredQuery;
+  search_stats: SearchStats;
+  results: SearchResults;
 }
 
 export interface SemanticSearchData {

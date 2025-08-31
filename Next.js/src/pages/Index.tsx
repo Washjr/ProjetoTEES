@@ -10,8 +10,9 @@ import NoResults from "@/components/NoResults";
 import ResearcherCard from "@/components/ResearcherCard";
 import ArticleOverlay from "@/components/ArticleOverlay";
 import SearchPagination from "@/components/SearchPagination";
+import FilterDisplay from "@/components/FilterDisplay";
 import { ApiService } from "@/services/apiService";
-import { ArticleData, ResearcherData, CombinedSearchData, SemanticSearchResult } from "@/types";
+import { ArticleData, ResearcherData, SemanticSearchResult } from "@/types";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -22,13 +23,16 @@ const Index = () => {
   const [results, setResults] = useState<ArticleData[]>([]);
   const [semanticResults, setSemanticResults] = useState<SemanticSearchResult[]>([]);
   const [researchers, setResearchers] = useState<ResearcherData[]>([]);
-  const [aiSummary, setAiSummary] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);
   const [selectedArticle, setSelectedArticle] =
     useState<ArticleData | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [filterInterface, setFilterInterface] = useState<string>("");
+  const [originalQuery, setOriginalQuery] = useState<string>("");
+  const [contentQuery, setContentQuery] = useState<string>("");
+  const [totalResults, setTotalResults] = useState<number>(0);
 
   const handleSearch = async (query: string, mode: SearchMode) => {
     if (!query.trim()) return;
@@ -45,11 +49,24 @@ const Index = () => {
         
         // Definir resultados da busca por termo
         setResults(combinedResults.termo_busca.resultados);
-        setAiSummary(combinedResults.termo_busca.resumo_ia);
         setTags(combinedResults.termo_busca.tags || []);
         
         // Definir resultados da busca semântica
         setSemanticResults(combinedResults.busca_semantica.resultados);
+        
+        // Armazenar informações da nova estrutura
+        setOriginalQuery(query);
+        if ((combinedResults as any).structured_query?.filter_interface) {
+          setFilterInterface((combinedResults as any).structured_query.filter_interface);
+        }
+        if ((combinedResults as any).structured_query?.content_query) {
+          setContentQuery((combinedResults as any).structured_query.content_query);
+        }
+        if ((combinedResults as any).search_stats?.total_resultados) {
+          setTotalResults((combinedResults as any).search_stats.total_resultados);
+        } else {
+          setTotalResults(combinedResults.termo_busca.resultados.length + combinedResults.busca_semantica.resultados.length);
+        }
         
         // Limpar dados de pesquisadores
         setResearchers([]);
@@ -62,7 +79,6 @@ const Index = () => {
         setResearchers(searchResearchers);
         setResults([]);
         setSemanticResults([]);
-        setAiSummary("");
         setTags([]);
         setTotalPages(Math.ceil(searchResearchers.length / 8));
       }
@@ -72,7 +88,6 @@ const Index = () => {
       setResults([]);
       setSemanticResults([]);
       setResearchers([]);
-      setAiSummary("");
       setTags([]);
       setTotalPages(1);
     } finally {
@@ -106,13 +121,16 @@ const Index = () => {
     setResults([]);
     setSemanticResults([]);
     setResearchers([]);
-    setAiSummary("");
     setTags([]);
     setCurrentPage(1);
     setTotalPages(1);
     setIsLoading(false);
     setSelectedArticle(null);
     setIsOverlayOpen(false);
+    setFilterInterface("");
+    setOriginalQuery("");
+    setContentQuery("");
+    setTotalResults(0);
     // Navegar para a página inicial
     navigate('/');
   };
@@ -228,13 +246,21 @@ const Index = () => {
               <LoadingSpinner />
             ) : (
               <>
+                {/* Filtros usados na busca */}
+                {searchMode === "articles" && (contentQuery || filterInterface) && (
+                  <FilterDisplay
+                    contentQuery={contentQuery || searchTerm}
+                    filterInterface={filterInterface}
+                  />
+                )}
+
                 {/* Sumário apenas para artigos */}
                 {searchMode === "articles" && results.length > 0 && (
                   <SearchSummary
                     totalResults={getTotalResults()}
                     topKeyword={getTopKeyword()}
                     searchTerm={searchTerm}
-                    aiSummary={aiSummary}
+                    aiSummary=""
                     tags={tags}
                   />
                 )}

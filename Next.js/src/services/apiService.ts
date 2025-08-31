@@ -1,4 +1,4 @@
-import { ArticleData, ResearcherData, ResultArticleData, SemanticSearchData, CombinedSearchData } from '../types';
+import { ArticleData, ResearcherData, ResultArticleData, SemanticSearchData, CombinedSearchData, NewApiResponse, SemanticSearchResult } from '../types';
 import { ResearcherProfileData, ResumeData } from '../types/researcher';
 // Para testes sem backend, descomente a linha abaixo e comente as funções do ApiService
 // import { ApiServiceTest as ApiService } from './apiServiceTest';
@@ -7,6 +7,58 @@ import { ResearcherProfileData, ResumeData } from '../types/researcher';
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 export class ApiService {
+  /**
+   * Busca artigos usando a nova estrutura da API com self-query
+   */
+  static async searchArticlesCombined(searchTerm: string): Promise<CombinedSearchData & { structured_query?: any, search_stats?: any }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/self_query/busca_hibrida?query=${encodeURIComponent(searchTerm)}&max_results=20`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Erro ao buscar artigos: ${response.status} ${response.statusText}`);
+      }
+      
+      const data: NewApiResponse = await response.json();
+      console.log('Dados recebidos do backend (nova estrutura):', data);
+      
+      // Transformar os resultados semânticos para o formato esperado
+      const semanticResults: SemanticSearchResult[] = data.results.semanticos.map(item => ({
+        documento: {
+          id: item.id || '',
+          title: item.title || '',
+          journal: item.journal || '',
+          year: item.year || 0,
+          abstract: item.abstract || '',
+          doi: item.doi,
+          authors: item.authors || [],
+          qualis: item.qualis,
+          score: item.score
+        },
+        score: item.score
+      }));
+
+      // Retornar no formato esperado pelo frontend com informações extras
+      return {
+        termo_busca: {
+          resultados: data.results.termos,
+          resumo_ia: "", // Desabilitado conforme solicitado
+          tags: []
+        },
+        busca_semantica: {
+          query: data.query,
+          resultados: semanticResults
+        },
+        structured_query: data.structured_query,
+        search_stats: data.search_stats
+      };
+    } catch (error) {
+      console.error('Erro ao buscar artigos:', error);
+      throw error;
+    }
+  }
+
   /**
    * Busca artigos baseado no termo de pesquisa
    * Para usar dados mockados para teste, comente este método e descomente o import do ApiServiceTest
@@ -70,27 +122,6 @@ export class ApiService {
       return data;
     } catch (error) {
       console.error('Erro na busca semântica:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Busca combinada: termo + semântica
-   */
-  static async searchArticlesCombined(searchTerm: string, incluirResumo: boolean = true): Promise<CombinedSearchData> {
-    try {
-      // Executar ambas as buscas em paralelo
-      const [termoBusca, buscaSemantica] = await Promise.all([
-        this.searchArticles(searchTerm, incluirResumo),
-        this.searchArticlesSemantic(searchTerm)
-      ]);
-
-      return {
-        termo_busca: termoBusca,
-        busca_semantica: buscaSemantica
-      };
-    } catch (error) {
-      console.error('Erro na busca combinada:', error);
       throw error;
     }
   }
