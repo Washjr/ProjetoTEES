@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+import logging
 from typing import Any, Dict, List, Union, Optional
 import re
+
+logger = logging.getLogger(__name__)
 
 class Operator(Enum):
     AND = 'and'
@@ -45,6 +48,7 @@ class FilterTranslator(ABC):
         elif isinstance(filter_obj, Operation):
             return self._translate_operation(filter_obj)
         else:
+            logger.warning(f"Não foi possível traduzir o filtro: {filter_obj}.")
             raise ValueError(f"Unsupported filter type: {type(filter_obj)}")
     
     @abstractmethod
@@ -252,10 +256,9 @@ def get_where_clause(filter_string: str, translator: Optional[FilterTranslator] 
     
     parser = FilterParser()
     try:
-        print(filter_string)
         parsed_filter = parser.parse_filter_string(filter_string)
         sql_clause = translator.translate_filter(parsed_filter)
     except Exception as e:
-        print(f"Não foi possível traduzir o filtro: {filter_string}. Erro: {e}")
+        logger.info(f"Não foi possível traduzir o filtro: {filter_string}. Erro: {e}")
         return ""
     return f"{sql_clause}"

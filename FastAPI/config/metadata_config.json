@@ -2,7 +2,7 @@
   "metadata_fields": [
     {
       "name": "year",
-      "description": "Ano de publicação do artigo no formato numérico (ex.: 2023). Use para filtrar artigos por ano específico ou por intervalo de anos.",
+      "description": "Ano de publicação do artigo no formato numérico (ex.: 2023). Use para filtrar artigos por ano específico ou por intervalo de anos. Make sure that you filter year only using = (eq), > (gt), < (lt), >= (gte), <= (lte) operators.",
       "type": "integer"
     },
     {
