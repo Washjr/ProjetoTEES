@@ -255,7 +255,7 @@ const Index = () => {
                 )}
 
                 {/* Sumário apenas para artigos */}
-                {searchMode === "articles" && results.length > 0 && (
+                {/* {searchMode === "articles" && results.length > 0 && (
                   <SearchSummary
                     totalResults={getTotalResults()}
                     topKeyword={getTopKeyword()}
@@ -263,7 +263,7 @@ const Index = () => {
                     aiSummary=""
                     tags={tags}
                   />
-                )}
+                ) */}
 
                 {/* Resultados */}
                 {searchMode === "articles" ? (
@@ -286,6 +286,7 @@ const Index = () => {
                                 year={result.year}
                                 qualis={result.qualis}
                                 abstract={result.abstract}
+                                authors={Array.isArray(result.authors) ? (typeof result.authors[0] === 'string' ? result.authors : result.authors.map(a => a.name)) : []}
                                 searchTerm={searchTerm}
                                 onClick={() => handleArticleClick(result)}
                               />

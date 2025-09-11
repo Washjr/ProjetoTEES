@@ -109,6 +109,16 @@ const SemanticSearchResultComponent: React.FC<SemanticSearchResultProps> = ({
                 </span>
               </div>
             </div>
+            {/* Autores do artigo */}
+            {documento.authors && documento.authors.length > 0 && (
+              <div className="text-xs text-slate-500 mb-1">
+                <span className="font-medium text-slate-600">Autores:</span> {
+                  typeof documento.authors[0] === 'string'
+                    ? documento.authors.join(', ')
+                    : (documento.authors as any[]).map(a => a.name).join(', ')
+                }
+              </div>
+            )}
             
             {/* Informações da publicação */}
             <p className="text-sm text-slate-600">

@@ -9,6 +9,7 @@ interface SearchResultProps {
   abstract: string;
   searchTerm: string;
   qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'SQ';
+  authors?: string[];
   onClick?: () => void;
 }
 
@@ -20,6 +21,7 @@ const SearchResult = ({
   abstract,
   searchTerm,
   qualis,
+  authors = [],
   onClick 
 }: SearchResultProps) => {
   const highlightText = (text: string, term: string) => {
@@ -108,7 +110,12 @@ const SearchResult = ({
                 </span>
               </div>
             </div>
-            
+            {/* Autores do artigo */}
+            {authors.length > 0 && (
+              <div className="text-xs text-slate-500 mb-1">
+                <span className="font-medium text-slate-600">Autores:</span> {authors.join(', ')}
+              </div>
+            )}
             {/* Informações da publicação */}
             <p className="text-sm text-slate-600">
               {publicationInfo}

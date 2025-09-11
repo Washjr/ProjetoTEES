@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -36,25 +35,28 @@ const ArticleOverlay = ({ article, isOpen, onClose, onAuthorClick }: ArticleOver
           <div>
             <h3 className="font-semibold mb-2">Autores:</h3>
             <div className="flex flex-wrap gap-2">
-              {article.authors.map((author) => (
-                <Button
-                  key={author.id}
-                  variant="link"
-                  className="p-0 h-auto text-primary hover:underline"
-                  onClick={() => onAuthorClick(author.id)}
-                >
-                  {author.name}
-                </Button>
-              ))}
+              {Array.isArray(article.authors) && article.authors.length > 0 ? (
+                typeof article.authors[0] === 'string'
+                  ? article.authors.map((author, idx) => (
+                      <span key={author + idx} className="px-2 py-1 rounded bg-slate-100 text-slate-700 text-xs">
+                        {author}
+                      </span>
+                    ))
+                  : article.authors.map((author: any) => (
+                      <Button
+                        key={author.id}
+                        variant="link"
+                        className="p-0 h-auto text-primary hover:underline"
+                        onClick={() => author.id && onAuthorClick(author.id)}
+                        disabled={!author.id}
+                      >
+                        {author.name}
+                      </Button>
+                    ))
+              ) : (
+                <span className="text-xs text-slate-400">Nenhum autor informado</span>
+              )}
             </div>
-          </div>
-
-          {/* Abstract */}
-          <div>
-            <h3 className="font-semibold mb-2">Abstract:</h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {article.abstract}
-            </p>
           </div>
 
           {/* DOI */}
