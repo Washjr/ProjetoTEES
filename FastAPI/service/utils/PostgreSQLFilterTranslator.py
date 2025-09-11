@@ -51,11 +51,11 @@ class PostgreSQLFilterTranslator(FilterTranslator):
         return f"{column_name} NOT IN ({values_str})"
     
     def _build_like_clause(self, column_name: str, value: Any) -> str:
-        return f"{column_name} LIKE {self._quote_value(f'%{value}%')}"
+        return f"unaccent(lower({column_name})) LIKE unaccent(lower({self._quote_value(f'%{value}%')}))"
     
     def _build_ilike_clause(self, column_name: str, value: Any) -> str:
-        return f"{column_name} ILIKE {self._quote_value(f'%{value}%')}"
-    
+        return f"unaccent(lower({column_name})) ILIKE unaccent(lower({self._quote_value(f'%{value}%')}))"
+
     def _quote_value(self, value: Any) -> str:
         if isinstance(value, str):
             if '%' in value:

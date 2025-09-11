@@ -7,17 +7,17 @@
     },
     {
       "name": "qualis",
-      "description": "Classificação Qualis do periódico, indicando a relevância acadêmica. Valores possíveis: ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C'], do mais alto (A1) ao mais baixo (C). Para relevância alta, use A1, A2 ou A3; para média, A4, B1 ou B2; para baixa, B3, B4 ou C. Comparações devem seguir essa hierarquia. Ao interpretar consultas que envolvam 'qualis X ou maior', retorne sempre um filtro usando o operador IN com todos os valores iguais ou superiores a X, conforme a ordem de relevância. Exemplo: para 'Qualis B2 ou superior', filtre por 'Comparison(comparator=<Comparator.IN: 'in'>, attribute='qualis', value=['B2', 'B1', 'A4', 'A3', 'A2', 'A1'])'.",
+      "description": "Classificação Qualis do periódico, indicando a relevância acadêmica. Valores possíveis: ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C'], do mais alto (A1) ao mais baixo (C). Para relevância alta, use A1, A2 ou A3; para média, A4, B1 ou B2; para baixa, B3, B4 ou C. Comparações devem seguir essa hierarquia. Ao interpretar consultas que envolvam 'qualis X ou maior', retorne sempre um filtro usando o operador IN com todos os valores iguais ou superiores a X, conforme a ordem de relevância. Exemplo: para 'Qualis B2 ou superior', filtre por 'Comparison(comparator=<Comparator.IN: 'in'>, attribute='qualis', value= [ 'B2', 'B1', 'A4', 'A3', 'A2', 'A1'] )'.",
       "type": "string"
     },
     {
       "name": "journal",
-      "description": "Nome do periódico onde o artigo foi publicado, o nome do jornal pode estar abreviado ou completo. Ex: Entrada: `artigos sobre robótica na revista X` Saída esperada:` query='artigos sobre robótica', Comparison(comparator=<Comparator.CONTAIN: 'contain'> attribute='journal' value='X`)",
+      "description": "Nome do periódico onde o artigo foi publicado. Use o comparador 'like' para permitir buscas parciais ou por variações do nome. Ex: Entrada: `artigos sobre robótica na revista X` Saída esperada:` query='artigos sobre robótica', Comparison(comparator=<Comparator.LIKE: 'like'> attribute='journal' value='X`). Sempre use LIKE para o atributo journal. Make sure that you filter for journal only use LIKE do comparison.",
       "type": "string"
     },
     {
       "name": "authors",
-      "description": "Nomes dos autores do artigo. Quando um nome de autor é mencionado na busca, como 'artigos de X por Y', o nome 'Y' deve ser usado apenas para filtrar pelo autor, e 'X' deve ser a query. Use o comparador 'like' para permitir buscas parciais ou por variações do nome. Exemplo: para a busca 'Artigos sobre computação do autor João Borges', a query deve ser 'computação' e o filtro 'Comparison(comparator=<Comparator.LIKE: 'like'> attribute='authors' value='João Borges`)'. Sempre use LIKE para o atributo authors. Make sure that you filter for authors only use LIKE do comparison.",
+      "description": "Apenas nomes dos autores do artigo. Quando um nome de autor é mencionado na busca, como 'artigos de X por Y', o nome 'Y' deve ser usado apenas para filtrar pelo autor, e 'X' deve ser a query. Use o comparador 'like' para permitir buscas parciais ou por variações do nome. Exemplo: para a busca 'Artigos sobre computação do autor João Borges', a query deve ser 'computação' e o filtro 'Comparison(comparator=<Comparator.LIKE: 'like'> attribute='authors' value='João Borges`)'. Sempre use LIKE para o atributo authors. Make sure that you filter for authors only use LIKE do comparison.",
       "type": "string or list[string]"
     },
     {

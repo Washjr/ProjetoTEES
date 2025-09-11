@@ -66,6 +66,7 @@ class ArtigoDAO:
 
             return artigos_dict
         except Exception as e:
+            self.conexao.rollback()
             logger.exception("Erro ao executar consulta de artigos")
             raise RuntimeError(f"Erro ao executar consulta de artigos: {e}")
     
