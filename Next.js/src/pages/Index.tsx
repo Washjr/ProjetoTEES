@@ -58,6 +58,8 @@ const Index = () => {
         setOriginalQuery(query);
         if ((combinedResults as any).structured_query?.filter_interface) {
           setFilterInterface((combinedResults as any).structured_query.filter_interface);
+        } else {
+          setFilterInterface("");
         }
         if ((combinedResults as any).structured_query?.content_query) {
           setContentQuery((combinedResults as any).structured_query.content_query);
