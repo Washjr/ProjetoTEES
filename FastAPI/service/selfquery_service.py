@@ -30,6 +30,8 @@ class SelfQueryService:
 
     def get_metadata_config(self) -> Dict[str, Any]:
         try:
+            self.self_query.reload_query_constructor()
+            logger.info("metadata_config.json recarregado com sucesso.")
             return self.self_query.metadata_config
         except Exception as e:
             logger.error(f"Erro ao carregar metadata_config.json: {e}")
@@ -50,9 +52,6 @@ class SelfQueryService:
         """
         try:
             # Passo 1: Separar query de conteúdo e filtros
-            if self.self_query.retriever is None:
-                self.self_query.initialize_retriever(limit_documents=1)
-
             structured_query = self.self_query.query_constructor.invoke(
                 {"query": query}
             )

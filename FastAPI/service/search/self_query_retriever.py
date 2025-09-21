@@ -24,7 +24,8 @@ from service.embedding import EmbeddingService
 from banco.conexao_db import Conexao
 
 COLLECTION_NAME = "artigo"
-LLM_MODEL = "gpt-3.5-turbo"
+LLM_MODEL = "gpt-5-nano-2025-08-07"
+# LLM_MODEL = "gpt-3.5-turbo"
 LLM_TEMPERATURE = 0
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,6 @@ class SelfQueryRetrieverService:
 
         self.artigo_dao = ArtigoDAO()
         self.embedding_service = EmbeddingService()
-        self.metadata_config = self._load_metadata_config()
 
         self.llm = ChatOpenAI(
             temperature=LLM_TEMPERATURE,
@@ -61,6 +61,13 @@ class SelfQueryRetrieverService:
             model=LLM_MODEL,
         )
 
+        self.reload_query_constructor()
+
+        self.retriever = None
+        self._vectorstore = None
+
+    def reload_query_constructor(self):
+        self.metadata_config = self._load_metadata_config()
         self.attribute_infos = self._build_attribute_infos()
 
         self.document_content_description = self.metadata_config.get(
@@ -73,9 +80,6 @@ class SelfQueryRetrieverService:
         )
         output_parser = StructuredQueryOutputParser.from_components()
         self.query_constructor = prompt | self.llm | output_parser
-
-        self.retriever = None
-        self._vectorstore = None
 
     def _load_metadata_config(self) -> Dict[str, Any]:
         """Carrega configuração de metadados do arquivo JSON."""
