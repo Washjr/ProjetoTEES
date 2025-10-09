@@ -50,7 +50,7 @@ class SelfQueryController:
         como ano, qualis, periódico, autor, etc.
         """
         try:
-            return self.service.get_metadata_config()
+            return self.service.get_filters_info()
         
         except Exception as e:
             logger.error(f"Erro ao listar filtros disponíveis: {e}")

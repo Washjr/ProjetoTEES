@@ -3,27 +3,32 @@
     {
       "name": "year",
       "description": "Ano de publicação do artigo no formato numérico (ex.: 2023). Use para filtrar artigos por ano específico ou por intervalo de anos. Make sure that you filter year only using = (eq), > (gt), < (lt), >= (gte), <= (lte) operators.",
-      "type": "integer"
+      "type": "integer",
+      "filter_description": "Ano de publicação do artigo, pode ser usado para filtrar artigos por ano específico ou por intervalo de anos"
     },
     {
       "name": "qualis",
-      "description": "Classificação Qualis do periódico, indicando a relevância acadêmica. Valores possíveis: ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C'], do mais alto (A1) ao mais baixo (C). Para relevância alta, use A1, A2 ou A3; para média, A4, B1 ou B2; para baixa, B3, B4 ou C. Comparações devem seguir essa hierarquia. Ao interpretar consultas que envolvam 'qualis X ou maior', retorne sempre um filtro usando o operador IN com todos os valores iguais ou superiores a X, conforme a ordem de relevância. Exemplo: para 'Qualis B2 ou superior', filtre por 'Comparison(comparator=<Comparator.IN: 'in'>, attribute='qualis', value=[ 'B2', 'B1', 'A4', 'A3', 'A2', 'A1'] ). Use only IN for this metadata field'",
-      "type": "string"
+      "description": "Classificação Qualis do periódico, indicando a relevância acadêmica. Valores possíveis: ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C'], do mais alto (A1) ao mais baixo (C), caso outro valor se apresente desconsidere. Para relevância alta, use A1, A2 ou A3; para média, A4, B1 ou B2; para baixa, B3, B4 ou C. Comparações devem seguir essa hierarquia. Few shots learning, Example 2: query 'Computação qualis B2', query='computação', filter  'Comparison(comparator=<Comparator.IN: 'in'> attribute='qualis' value=['B2'] ). Example 2: query 'Computação qualis B2 ou superior', query='computação', filter  'Comparison(comparator=<Comparator.IN: 'in'> attribute='qualis' value=[ 'B2', 'B1', 'A4', 'A3', 'A2', 'A1'] ). Use only IN for this metadata field'",
+      "type": "string",
+      "filter_description": "Classificação do periódico, pode ser usado para filtrar artigos seguindo a hierarquia do Qualis"
     },
     {
       "name": "journal",
-      "description": "Nome do periódico onde o artigo foi publicado. Sempre use o comparador 'like' para permitir buscas parciais ou por variações do nome da revista. Few shots learning: When received this query: When received this query: `artigos sobre computação na revista/jornal nature` the content_query is query='computação', and the filter must beComparison(comparator=<Comparator.LIKE: 'like'> attribute='journal' value='nature`). Use LIKE for this metadata field",
-      "type": "string"
+      "description": "Nome do periódico onde o artigo foi publicado. Sempre use o comparador 'like' para permitir buscas parciais ou por variações do nome da revista. Few shots learning: When received this query: When received this query: `artigos sobre computação na revista/jornal nature` the content_query is query='computação', and the filter must be Comparison(comparator=<Comparator.LIKE: 'like'> attribute='journal' value='nature`). Use LIKE for this metadata field. Do not use \\ on the answer.",
+      "type": "string",
+      "filter_description": "Nome do periódico onde o artigo foi publicado, use para filtrar por nome ou parte do nome do periódico"
     },
     {
       "name": "authors",
-      "description": "Apenas nomes dos autores do artigo. Quando um nome de autor é mencionado na busca, como 'artigos de X por Y', o nome 'Y' deve ser usado apenas para filtrar pelo autor, e 'X' deve ser a query. Few shots learning, Example 1: Query: 'Artigos sobre computação do autor João Borges', the content_query is 'computação' and the filter must be'Comparison(comparator=<Comparator.LIKE: 'like'> attribute='authors' value='João Borges`)'. Use only LIKE for this metadata field, even if it is combined with AND or OR",
-      "type": "string or list[string]"
+      "description": "Apenas nomes dos autores do artigo. Quando um nome de autor é mencionado na busca, como 'artigos de X por Y', o nome 'Y' deve ser usado apenas para filtrar pelo autor, e 'X' deve ser a query. Few shots learning, Example 1: Query: 'Artigos sobre computação do autor João Borges', the content_query is 'computação' and the filter must be'Comparison(comparator=<Comparator.LIKE: 'like'> attribute='authors' value='João Borges`)'. Use only LIKE for this metadata field, even if it is combined with AND or OR. Do not use \\ on the answer.",
+      "type": "string or list[string]",
+      "filter_description": "Nomes dos autores do artigo, use para filtrar por nome ou parte do nome do autor"
     },
     {
       "name": "doi",
       "description": "Identificador DOI (Digital Object Identifier) único do artigo, usado para buscas exatas",
-      "type": "string"
+      "type": "string",
+      "filter_description": "DOI (Digital Object Identifier) do artigo pesquisado"
     }
   ],
   "document_content_description": "Artigos científicos contendo título, resumo e metadados de publicação acadêmica"

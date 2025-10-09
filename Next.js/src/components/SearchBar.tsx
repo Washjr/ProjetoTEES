@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef, useLayoutEffect } from 'react';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SearchMode } from './SearchInterface';
@@ -25,6 +25,16 @@ const SearchBar = ({
     ? 'Pesquisar artigos, publicações, trabalhos...'
     : 'Pesquisar pesquisadores, professores, autores...';
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = '3.5rem';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [searchQuery]);
+
   return (
     <div className="relative group">
       <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
@@ -36,21 +46,21 @@ const SearchBar = ({
           }`} 
         />
       </div>
-      
-      <input
-        type="text"
+      <textarea
+        ref={textareaRef}
         value={searchQuery}
-        onChange={(e) => onQueryChange(e.target.value)}
-        onKeyPress={onKeyPress}
+        onInput={(e) => onQueryChange((e.target as HTMLTextAreaElement).value)}
+        onKeyDown={onKeyPress}
         placeholder={placeholder}
         disabled={isLoading}
-        className={`w-full h-14 pl-12 pr-24 text-lg bg-slate-50/80 border-2 rounded-xl transition-all duration-200 focus:outline-none focus:bg-white ${
+        rows={1}
+        style={{ resize: 'none', minHeight: '3.5rem', maxHeight: '12rem', overflowY: 'auto', paddingTop: '0.9rem' }}
+        className={`w-full pl-12 pr-32 text-lg bg-slate-50/80 border-2 rounded-xl transition-all duration-200 focus:outline-none focus:bg-white align-middle ${
           searchMode === 'articles'
             ? 'border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100'
             : 'border-slate-200 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100'
         } placeholder-slate-400 disabled:opacity-50 disabled:cursor-not-allowed`}
       />
-      
       <div className="absolute inset-y-0 right-2 flex items-center">
         <Button
           onClick={onSearch}

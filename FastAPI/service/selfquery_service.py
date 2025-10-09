@@ -36,6 +36,17 @@ class SelfQueryService:
         except Exception as e:
             logger.error(f"Erro ao carregar metadata_config.json: {e}")
             raise RuntimeError(f"Erro ao listar filtros: {str(e)}")
+    
+    # retorna um string para o front end
+    def get_filters_info(self) -> List[str]:
+        try:
+            self.self_query.reload_query_constructor()
+            logger.info("metadata_config.json recarregado com sucesso.")
+            filters_info = self.self_query.metadata_config.get("metadata_fields", [])
+            return [f"{field['filter_description']}" for field in filters_info]
+        except Exception as e:
+            logger.error(f"Erro ao carregar metadata_config.json: {e}")
+            raise RuntimeError(f"Erro ao listar filtros: {str(e)}")
 
     def buscar_artigos_hibrido(
         self, query: str, max_results: int = 20
