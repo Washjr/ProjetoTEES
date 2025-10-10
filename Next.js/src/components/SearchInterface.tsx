@@ -1,5 +1,4 @@
 import { useState } from "react";
-import SearchToggle from "./SearchToggle";
 import SearchBar from "./SearchBar";
 
 export type SearchMode = "articles" | "researchers";
@@ -10,7 +9,7 @@ interface SearchInterfaceProps {
 }
 
 const SearchInterface = ({ onSearch, isLoading = false }: SearchInterfaceProps) => {
-  const [searchMode, setSearchMode] = useState<SearchMode>("articles");
+  const searchMode: SearchMode = "articles";
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = () => {
@@ -32,9 +31,7 @@ const SearchInterface = ({ onSearch, isLoading = false }: SearchInterfaceProps) 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-slate-200/50 p-8">
-        <SearchToggle searchMode={searchMode} onModeChange={setSearchMode} />
-
-        <div className="mt-6">
+        <div>
           <SearchBar
             searchQuery={searchQuery}
             searchMode={searchMode}

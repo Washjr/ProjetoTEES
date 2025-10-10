@@ -194,8 +194,8 @@ const Index = () => {
             <SearchInterface onSearch={handleSearch} isLoading={isLoading} />
 
             {!hasSearched && (
-              <div className="mt-16 grid md:grid-cols-3 gap-8 max-w-3xl mx-auto">
-                <div className="text-center p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+              <div className="mt-16 grid md:grid-cols-3 gap-8 max-w-3xl mx-auto relative z-0">
+                <div className="text-center p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow relative z-0">
                   <div className="w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
                     <span className="text-blue-600 text-xl font-semibold">
                       📚
@@ -209,7 +209,7 @@ const Index = () => {
                   </p>
                 </div>
 
-                <div className="text-center p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-center p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow relative z-0">
                   <div className="w-12 h-12 bg-indigo-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
                     <span className="text-indigo-600 text-xl font-semibold">
                       👨‍🎓
@@ -223,7 +223,7 @@ const Index = () => {
                   </p>
                 </div>
 
-                <div className="text-center p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-center p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm hover:shadow-md transition-shadow relative z-0">
                   <div className="w-12 h-12 bg-purple-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
                     <span className="text-purple-600 text-xl font-semibold">
                       🔬
