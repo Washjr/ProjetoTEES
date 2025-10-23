@@ -91,7 +91,6 @@ const Researcher = () => {
   }
 
   const { researcher, productions } = researcherProfile;
-  // const { academicHistory } = researcherProfile; // Comentado - não implementado no backend ainda
 
   return (
     <Layout showBackButton={true} backButtonText="Voltar para busca">

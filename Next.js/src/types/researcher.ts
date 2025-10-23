@@ -7,16 +7,9 @@ export interface ResearcherData {
   photo: string;
 }
 
-// export interface AcademicHistoryItem {
-//   year: string;
-//   title: string;
-//   institution: string;
-// }
-
 export interface ResearcherProfileData {
   researcher: ResearcherData;
   productions: ArticleData[];
-  // academicHistory: AcademicHistoryItem[];
 }
 
 export interface ResumeData {

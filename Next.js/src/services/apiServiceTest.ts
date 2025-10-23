@@ -1,8 +1,6 @@
 import { ArticleData, ResearcherData, ResultArticleData } from '../types';
 import { ResearcherProfileData } from '../types/researcher';
-// import { AcademicHistoryItem } from '../types/researcher';
 
-// Dados de exemplo baseados no formato real da API
 const mockArticles: ArticleData[] = [
   {
     id: "0c9ea3bf-7892-4959-af55-a301ea663478",
@@ -163,11 +161,6 @@ const mockResearcherProfiles: { [key: string]: ResearcherProfileData } = {
         ]
       }
     ]
-    // academicHistory: [
-    //   { year: "2020", title: "Doutorado em Ciência da Computação", institution: "Universidade de São Paulo" },
-    //   { year: "2016", title: "Mestrado em Inteligência Artificial", institution: "UNICAMP" },
-    //   { year: "2014", title: "Bacharelado em Ciência da Computação", institution: "UFRJ" }
-    // ]
   },
   "faec706b-c321-4bea-8026-fc20ced12885": {
     researcher: {
@@ -223,11 +216,6 @@ const mockResearcherProfiles: { [key: string]: ResearcherProfileData } = {
         ]
       }
     ]
-    // academicHistory: [
-    //   { year: "2018", title: "Doutorado em Ciência da Computação", institution: "Universidade Federal da Bahia" },
-    //   { year: "2014", title: "Mestrado em Sistemas e Computação", institution: "UFBA" },
-    //   { year: "2012", title: "Bacharelado em Ciência da Computação", institution: "UFBA" }
-    // ]
   }
 };
 

@@ -1,9 +1,6 @@
 import { ArticleData, ResearcherData, ResultArticleData, SemanticSearchData, CombinedSearchData, NewApiResponse, SemanticSearchResult } from '../types';
 import { ResearcherProfileData, ResumeData } from '../types/researcher';
-// Para testes sem backend, descomente a linha abaixo e comente as funções do ApiService
-// import { ApiServiceTest as ApiService } from './apiServiceTest';
 
-// Constante para facilitar a troca quando a API estiver pronta
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 export class ApiService {

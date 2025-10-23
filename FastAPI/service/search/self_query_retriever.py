@@ -25,8 +25,6 @@ from banco.conexao_db import Conexao
 
 COLLECTION_NAME = "artigo"
 LLM_MODEL = "gpt-5-mini-2025-08-07"
-# LLM_MODEL = "gpt-5-nano-2025-08-07"
-# LLM_MODEL = "gpt-3.5-turbo"
 LLM_TEMPERATURE = 0
 
 logger = logging.getLogger(__name__)
@@ -57,7 +55,6 @@ class SelfQueryRetrieverService:
         self.embedding_service = EmbeddingService()
 
         self.llm = ChatOpenAI(
-            # temperature=LLM_TEMPERATURE, não disponível no gpt-5-mini
             api_key=self.embedding_service.embeddings_client.openai_api_key,
             model=LLM_MODEL,
         )
