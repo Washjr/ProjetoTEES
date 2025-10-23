@@ -1,18 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import SearchSummary from '@/components/SearchSummary';
 import SearchResult from '@/components/SearchResult';
 import { ResearcherProfileData, ResumeData } from '@/types/researcher';
 import { ApiService } from '@/services/apiService';
 
 const Researcher = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [researcherProfile, setResearcherProfile] = useState<ResearcherProfileData | null>(null);
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,27 +66,27 @@ const Researcher = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Carregando perfil do pesquisador...</p>
+      <Layout showBackButton={true} backButtonText="Voltar para busca">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-slate-600">Carregando perfil do pesquisador...</p>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (error || !researcherProfile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-slate-800 mb-4">Erro</h2>
-          <p className="text-slate-600 mb-4">{error || 'Pesquisador não encontrado'}</p>
-          <Button onClick={() => navigate('/')} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Voltar para busca
-          </Button>
+      <Layout showBackButton={true} backButtonText="Voltar para busca">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">Erro</h2>
+            <p className="text-slate-600 mb-4">{error || 'Pesquisador não encontrado'}</p>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
@@ -95,37 +94,9 @@ const Researcher = () => {
   // const { academicHistory } = researcherProfile; // Comentado - não implementado no backend ainda
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Header igual ao da página principal */}
-      <header className="border-b border-slate-200/50 bg-white/70 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div 
-              className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => navigate('/')}
-            >
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">AE</span>
-              </div>
-              <span className="font-semibold text-slate-800">
-                Pesquisa Acadêmica
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/')}
-              className="gap-2 text-slate-600 hover:text-slate-800"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Voltar para busca
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        {/* Informações do pesquisador */}
-        <div className="flex flex-col md:flex-row gap-6 mb-8 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm p-6">
+    <Layout showBackButton={true} backButtonText="Voltar para busca">
+      {/* Informações do pesquisador */}
+      <div className="flex flex-col md:flex-row gap-6 mb-8 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm p-6">
           <div className="flex-shrink-0">
             <img 
               src={researcher.photo} 
@@ -215,28 +186,7 @@ const Researcher = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Histórico Acadêmico - Comentado pois não será implementado agora no backend */}
-        {/* <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-slate-800">Histórico Acadêmico</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {academicHistory.map((item, index) => (
-                <div key={index} className="flex gap-4 p-4 border border-slate-200/50 rounded-lg bg-white/50">
-                  <Badge variant="outline" className="border-blue-200 text-blue-700">{item.year}</Badge>
-                  <div>
-                    <h3 className="font-semibold text-slate-800">{item.title}</h3>
-                    <p className="text-slate-600">{item.institution}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card> */}
-      </main>
-    </div>
+      </Layout>
   );
 };
 

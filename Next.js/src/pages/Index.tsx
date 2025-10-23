@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Layout from "@/components/Layout";
 import SearchInterface, { SearchMode } from "@/components/SearchInterface";
-import SearchSummary from "@/components/SearchSummary";
 import SearchResult from "@/components/SearchResult";
 import SearchSectionDivider from "@/components/SearchSectionDivider";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -22,16 +22,13 @@ const Index = () => {
   const [results, setResults] = useState<ArticleData[]>([]);
   const [semanticResults, setSemanticResults] = useState<SemanticSearchResult[]>([]);
   const [researchers, setResearchers] = useState<ResearcherData[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
   const [selectedArticle, setSelectedArticle] =
     useState<ArticleData | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [filterInterface, setFilterInterface] = useState<string>("");
-  const [originalQuery, setOriginalQuery] = useState<string>("");
   const [contentQuery, setContentQuery] = useState<string>("");
-  const [totalResults, setTotalResults] = useState<number>(0);
 
   const handleSearch = async (query: string, mode: SearchMode) => {
     if (!query.trim()) return;
@@ -48,13 +45,11 @@ const Index = () => {
         
         // Definir resultados da busca por termo
         setResults(combinedResults.termo_busca.resultados);
-        setTags(combinedResults.termo_busca.tags || []);
         
         // Definir resultados da busca semântica
         setSemanticResults(combinedResults.busca_semantica.resultados);
         
         // Armazenar informações da nova estrutura
-        setOriginalQuery(query);
         if ((combinedResults as any).structured_query?.filter_interface) {
           setFilterInterface((combinedResults as any).structured_query.filter_interface);
         } else {
@@ -62,11 +57,6 @@ const Index = () => {
         }
         if ((combinedResults as any).structured_query?.content_query) {
           setContentQuery((combinedResults as any).structured_query.content_query);
-        }
-        if ((combinedResults as any).search_stats?.total_resultados) {
-          setTotalResults((combinedResults as any).search_stats.total_resultados);
-        } else {
-          setTotalResults(combinedResults.termo_busca.resultados.length + combinedResults.busca_semantica.resultados.length);
         }
         
         // Limpar dados de pesquisadores
@@ -80,7 +70,6 @@ const Index = () => {
         setResearchers(searchResearchers);
         setResults([]);
         setSemanticResults([]);
-        setTags([]);
         setTotalPages(Math.ceil(searchResearchers.length / 8));
       }
     } catch (error) {
@@ -89,7 +78,6 @@ const Index = () => {
       setResults([]);
       setSemanticResults([]);
       setResearchers([]);
-      setTags([]);
       setTotalPages(1);
     } finally {
       setIsLoading(false);
@@ -115,57 +103,9 @@ const Index = () => {
     navigate(`/researcher/${researcherId}`);
   };
 
-  const handleLogoClick = () => {
-    // Limpar todos os estados da pesquisa
-    setHasSearched(false);
-    setSearchTerm("");
-    setResults([]);
-    setSemanticResults([]);
-    setResearchers([]);
-    setTags([]);
-    setCurrentPage(1);
-    setTotalPages(1);
-    setIsLoading(false);
-    setSelectedArticle(null);
-    setIsOverlayOpen(false);
-    setFilterInterface("");
-    setOriginalQuery("");
-    setContentQuery("");
-    setTotalResults(0);
-    // Navegar para a página inicial
-    navigate('/');
-  };
-
-  const getTotalResults = () =>
-    searchMode === "articles" ? results.length + semanticResults.length : researchers.length;
-  const getTopKeyword = () => {
-    if (searchTerm.toLowerCase().includes("machine")) return "algoritmos";
-    if (searchTerm.toLowerCase().includes("climate")) return "temperatura";
-    return "pesquisa";
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Header simples */}
-      <header className="border-b border-slate-200/50 bg-white/70 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div 
-              className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={handleLogoClick}
-            >
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">AE</span>
-              </div>
-              <span className="font-semibold text-slate-800">
-                Pesquisa Acadêmica
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
+    <>
+      <Layout>
         {/* Seção de busca centralizada */}
         <div
           className={`transition-all duration-500 ${
@@ -340,7 +280,7 @@ const Index = () => {
             )}
           </div>
         )}
-      </main>
+      </Layout>
 
       {/* Overlay de artigo */}
       <ArticleOverlay
@@ -349,7 +289,7 @@ const Index = () => {
         onClose={() => setIsOverlayOpen(false)}
         onAuthorClick={handleAuthorClick}
       />
-    </div>
+    </>
   );
 };
 
