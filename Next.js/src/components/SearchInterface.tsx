@@ -1,20 +1,17 @@
 import { useState } from "react";
 import SearchBar from "./SearchBar";
 
-export type SearchMode = "articles" | "researchers";
-
 interface SearchInterfaceProps {
-  onSearch: (query: string, mode: SearchMode) => void;
+  onSearch: (query: string) => void;
   isLoading?: boolean;
 }
 
 const SearchInterface = ({ onSearch, isLoading = false }: SearchInterfaceProps) => {
-  const searchMode: SearchMode = "articles";
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
-    onSearch(searchQuery, searchMode);
+    onSearch(searchQuery);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -23,18 +20,12 @@ const SearchInterface = ({ onSearch, isLoading = false }: SearchInterfaceProps) 
     }
   };
 
-  const handleQuickSearch = (term: string) => {
-    setSearchQuery(term);
-    onSearch(term, searchMode);
-  };
-
   return (
     <div className="max-w-3xl mx-auto">
       <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-slate-200/50 p-8">
         <div>
           <SearchBar
             searchQuery={searchQuery}
-            searchMode={searchMode}
             onQueryChange={setSearchQuery}
             onKeyPress={handleKeyPress}
             onSearch={handleSearch}
