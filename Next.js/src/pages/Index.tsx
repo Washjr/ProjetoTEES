@@ -1,5 +1,4 @@
 import React from "react";
-import Layout from "@/components/Layout";
 import SearchInterface from "@/components/SearchInterface";
 import SearchResult from "@/components/SearchResult";
 import SearchSectionDivider from "@/components/SearchSectionDivider";
@@ -9,8 +8,10 @@ import ArticleOverlay from "@/components/ArticleOverlay";
 import SearchPagination from "@/components/SearchPagination";
 import FilterDisplay from "@/components/FilterDisplay";
 import { useSearch, useArticleOverlay, usePagination } from "@/hooks";
+import { useLayout } from "@/contexts/LayoutContext";
 
 const Index = () => {
+  const { setLayoutConfig } = useLayout();
   // Custom hooks para gerenciar estados e lógica
   const search = useSearch();
   const articleOverlay = useArticleOverlay();
@@ -19,6 +20,13 @@ const Index = () => {
     itemsPerPage: 10
   });
 
+  // Configurar o layout para ocultar o botão de volta
+  React.useEffect(() => {
+    setLayoutConfig({
+      showBackButton: false
+    });
+  }, [setLayoutConfig]);
+
   // Reset pagination when search changes
   React.useEffect(() => {
     pagination.resetPagination();
@@ -26,15 +34,14 @@ const Index = () => {
 
   return (
     <>
-      <Layout>
-        {/* Seção de busca centralizada */}
-        <div
-          className={`transition-all duration-500 ${
-            search.hasSearched
-              ? "mb-8 flex justify-center"
-              : "min-h-[60vh] flex items-center justify-center"
-          }`}
-        >
+      {/* Seção de busca centralizada */}
+      <div
+        className={`transition-all duration-500 ${
+          search.hasSearched
+            ? "mb-8 flex justify-center"
+            : "min-h-[60vh] flex items-center justify-center"
+        }`}
+      >
           <div className={`w-full ${search.hasSearched ? "max-w-2xl" : "max-w-4xl"}`}>
             {!search.hasSearched && (
               <div className="max-w-4xl mx-auto text-center mb-12">
@@ -183,7 +190,6 @@ const Index = () => {
             )}
           </div>
         )}
-      </Layout>
 
       {/* Overlay de artigo */}
       <ArticleOverlay

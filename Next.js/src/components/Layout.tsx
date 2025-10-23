@@ -1,19 +1,14 @@
 import React from 'react';
 import Header from './Header';
+import { useLayout } from '@/contexts/LayoutContext';
 
 interface LayoutProps {
   children: React.ReactNode;
-  showBackButton?: boolean;
-  backButtonText?: string;
-  className?: string;
 }
 
-const Layout: React.FC<LayoutProps> = ({ 
-  children, 
-  showBackButton = false, 
-  backButtonText = "Voltar para busca",
-  className = "" 
-}) => {
+const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const { showBackButton, backButtonText, className } = useLayout();
+
   return (
     <div className={`min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 ${className}`}>
       <Header 

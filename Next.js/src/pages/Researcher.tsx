@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import Layout from '@/components/Layout';
+import { useLayout } from '@/contexts/LayoutContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,12 +12,29 @@ import { ApiService } from '@/services/apiService';
 
 const Researcher = () => {
   const { id } = useParams();
+  const { setLayoutConfig } = useLayout();
   const [researcherProfile, setResearcherProfile] = useState<ResearcherProfileData | null>(null);
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingResume, setLoadingResume] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showResume, setShowResume] = useState(false);
+
+  // Configurar o layout para mostrar o botão de volta
+  useEffect(() => {
+    setLayoutConfig({
+      showBackButton: true,
+      backButtonText: "Voltar para busca"
+    });
+
+    // Limpar configuração quando o componente for desmontado
+    return () => {
+      setLayoutConfig({
+        showBackButton: false,
+        backButtonText: "Voltar para busca"
+      });
+    };
+  }, [setLayoutConfig]);
 
   useEffect(() => {
     const fetchResearcherProfile = async () => {
@@ -66,34 +83,30 @@ const Researcher = () => {
 
   if (loading) {
     return (
-      <Layout showBackButton={true} backButtonText="Voltar para busca">
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-slate-600">Carregando perfil do pesquisador...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Carregando perfil do pesquisador...</p>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   if (error || !researcherProfile) {
     return (
-      <Layout showBackButton={true} backButtonText="Voltar para busca">
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Erro</h2>
-            <p className="text-slate-600 mb-4">{error || 'Pesquisador não encontrado'}</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">Erro</h2>
+          <p className="text-slate-600 mb-4">{error || 'Pesquisador não encontrado'}</p>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   const { researcher, productions } = researcherProfile;
 
   return (
-    <Layout showBackButton={true} backButtonText="Voltar para busca">
+    <>
       {/* Informações do pesquisador */}
       <div className="flex flex-col md:flex-row gap-6 mb-8 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 shadow-sm p-6">
           <div className="flex-shrink-0">
@@ -185,7 +198,7 @@ const Researcher = () => {
             </div>
           </CardContent>
         </Card>
-      </Layout>
+    </>
   );
 };
 
