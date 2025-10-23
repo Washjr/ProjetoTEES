@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import SearchInterface, { SearchMode } from "@/components/SearchInterface";
 import SearchSummary from "@/components/SearchSummary";
 import SearchResult from "@/components/SearchResult";
-import SemanticSearchResultComponent from "@/components/SemanticSearchResult";
 import SearchSectionDivider from "@/components/SearchSectionDivider";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import NoResults from "@/components/NoResults";
@@ -256,17 +255,6 @@ const Index = () => {
                   />
                 )}
 
-                {/* Sumário apenas para artigos */}
-                {/* {searchMode === "articles" && results.length > 0 && (
-                  <SearchSummary
-                    totalResults={getTotalResults()}
-                    topKeyword={getTopKeyword()}
-                    searchTerm={searchTerm}
-                    aiSummary=""
-                    tags={tags}
-                  />
-                ) */}
-
                 {/* Resultados */}
                 {searchMode === "articles" ? (
                   (results.length > 0 || semanticResults.length > 0) ? (
@@ -307,9 +295,10 @@ const Index = () => {
                           />
                           <div className="space-y-4">
                             {semanticResults.map((result) => (
-                              <SemanticSearchResultComponent
-                                key={result.documento.id}
-                                result={result}
+                              <SearchResult
+                                key={result.documento?.id || result.id}
+                                isSemanticSearch={true}
+                                semanticResult={result}
                                 searchTerm={searchTerm}
                                 onClick={() => handleSemanticResultClick(result)}
                               />

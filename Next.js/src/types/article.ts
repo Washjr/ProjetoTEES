@@ -1,3 +1,5 @@
+import { QualitsClassification } from '@/lib/utils';
+
 export interface ArticleData {
   id: string;
   title: string;
@@ -6,7 +8,7 @@ export interface ArticleData {
   abstract: string;
   doi?: string | null;
   authors: string[] | Array<{ id: string; name: string }>;
-  qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'SQ';
+  qualis?: QualitsClassification;
   score?: number | null;
 }
 
@@ -21,7 +23,7 @@ export interface SemanticSearchResult {
   abstract?: string;
   doi?: string | null;
   authors?: string[];
-  qualis?: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'B4' | 'C' | 'SQ';
+  qualis?: QualitsClassification;
 }
 
 export interface StructuredQuery {
