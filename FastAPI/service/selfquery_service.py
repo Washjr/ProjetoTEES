@@ -1,5 +1,4 @@
 import logging
-from re import I
 from typing import List, Dict, Any
 
 from service.utils.InterfaceFilterTranslator import InterfaceFilterTranslator
@@ -37,7 +36,6 @@ class SelfQueryService:
             logger.error(f"Erro ao carregar metadata_config.json: {e}")
             raise RuntimeError(f"Erro ao listar filtros: {str(e)}")
     
-    # retorna um string para o front end
     def get_filters_info(self) -> List[str]:
         try:
             self.self_query.reload_query_constructor()

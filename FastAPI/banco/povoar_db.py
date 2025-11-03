@@ -126,6 +126,24 @@ INSERT INTO artigo (nome, ano, doi, id_pesquisador, id_periodico) VALUES
 ON CONFLICT DO NOTHING;
 """
 
+script_sql_view = """
+CREATE OR REPLACE VIEW vw_artigos_completos AS
+SELECT
+    a.id_artigo as id,
+    a.nome as title,
+    per.nome as journal,
+    a.ano as year,
+    a.resumo as abstract,
+    a.doi,
+    per.qualis,
+    p.id_pesquisador as author_id,
+    p.nome as authors,
+    a.embedding
+FROM artigo a
+JOIN periodico per ON a.id_periodico = per.id_periodico
+JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador;
+"""
+
 def main():
     conexao = Conexao.obter_conexao()
     try:
@@ -139,6 +157,11 @@ def main():
             cursor.execute(script_sql_insercao)
             conexao.commit()
             logger.info("Dados inseridos com sucesso.")
+
+            logger.info("Criando view vw_artigos_completos...")
+            cursor.execute(script_sql_view)
+            conexao.commit()
+            logger.info("View criada com sucesso.")
 
     except Exception as e:
         conexao.rollback()

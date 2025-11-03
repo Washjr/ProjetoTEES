@@ -196,25 +196,12 @@ class EmbeddingService(IEmbeddingService):
                 embedding_str = str(query_embedding)
                 
                 base_query = (
-                    "WITH base AS ("
-                    "    SELECT "
-                    "        a.id_artigo as id, "
-                    "        a.nome as title, "
-                    "        per.nome as journal, "
-                    "        a.ano as year, "
-                    "        a.resumo as abstract, "
-                    "        a.doi, "
-                    "        per.qualis, "
-                    "        p.id_pesquisador as author_id, "
-                    "        p.nome as authors, "
-                    f"        (1 - (a.embedding <=> '{embedding_str}'::vector)) AS similarity_score "
-                    "    FROM artigo a "
-                    "    JOIN periodico per ON a.id_periodico = per.id_periodico "
-                    "    JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
-                    "    WHERE a.embedding IS NOT NULL "
-                    f"        AND (1 - (a.embedding <=> '{embedding_str}'::vector)) >= {threshold}"
-                    ") "
-                    "SELECT * FROM base "
+                    "SELECT "
+                    "    *, "
+                    f"    (1 - (embedding <=> '{embedding_str}'::vector)) AS similarity_score "
+                    "FROM vw_artigos_completos "
+                    "WHERE embedding IS NOT NULL "
+                    f"    AND (1 - (embedding <=> '{embedding_str}'::vector)) >= {threshold}"
                 )
 
                 if filter:

@@ -40,7 +40,7 @@ class ArtigoDAO:
             artigos_dict = {}
             for linha in linhas:
                 (id_artigo, title, journal, year, abstract, doi, qualis, 
-                    author_id, authors) = linha
+                    author_id, authors, embedding) = linha
                 
                 normalized_title = title.strip().lower() if title else ""
                 normalized_journal = journal.strip().lower() if journal else ""
@@ -72,20 +72,8 @@ class ArtigoDAO:
     
     def listar_artigos(self) -> List[ArtigoBuscaDTO]: 
         sql = (
-            "SELECT "
-            "a.id_artigo as id, "
-            "a.nome as title, "
-            "per.nome as journal, "
-            "a.ano as year, "
-            "a.resumo as abstract, "
-            "a.doi, "
-            "per.qualis, "
-            "p.id_pesquisador as author_id, "
-            "p.nome as authors "
-            "FROM artigo a "
-            "JOIN periodico per ON a.id_periodico = per.id_periodico "
-            "JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
-            "ORDER BY a.id_artigo"
+            "SELECT * FROM vw_artigos_completos "
+            "ORDER BY id"
         )
         
         artigos_dict = self._executar_consulta_artigos(sql)
@@ -95,22 +83,7 @@ class ArtigoDAO:
         termo_formatado = f"%{termo.strip()}%"
         
         sql = (
-            "WITH base AS ("
-            "    SELECT "
-            "        a.id_artigo as id, "
-            "        a.nome as title, "
-            "        per.nome as journal, "
-            "        a.ano as year, "
-            "        a.resumo as abstract, "
-            "        a.doi, "
-            "        per.qualis, "
-            "        p.id_pesquisador as author_id, "
-            "        p.nome as authors "
-            "    FROM artigo a "
-            "    JOIN periodico per ON a.id_periodico = per.id_periodico "
-            "    JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
-            ") "
-            f"SELECT * FROM base "
+            f"SELECT * FROM vw_artigos_completos "
             f"WHERE ((unaccent(lower(title)) ILIKE unaccent(lower('{termo_formatado}')) "
             f"   OR unaccent(lower(abstract)) ILIKE unaccent(lower('{termo_formatado}')))) "
         )
@@ -256,21 +229,9 @@ class ArtigoDAO:
             Lista de objetos ArtigoBuscaDTO com dados dos artigos que possuem embeddings
         """
         sql = (
-            "SELECT "
-            "a.id_artigo as id, "
-            "a.nome as title, "
-            "per.nome as journal, "
-            "a.ano as year, "
-            "a.resumo as abstract, "
-            "a.doi, "
-            "per.qualis, "
-            "p.id_pesquisador as author_id, "
-            "p.nome as authors "
-            "FROM artigo a "
-            "JOIN periodico per ON a.id_periodico = per.id_periodico "
-            "JOIN pesquisador p ON a.id_pesquisador = p.id_pesquisador "
-            "WHERE a.embedding IS NOT NULL "
-            "ORDER BY a.id_artigo"
+            "SELECT * FROM vw_artigos_completos "
+            "WHERE embedding IS NOT NULL "
+            "ORDER BY id"
         )
         
         artigos_dict = self._executar_consulta_artigos(sql)
