@@ -1,7 +1,6 @@
 from typing import List, Dict
 from model.dto.artigo_busca_dto import ArtigoBuscaDTO
 from langchain_core.documents import Document
-from service.embedding.embedding_service import EmbeddingResult
 
 class ArtigoDTOMapper:
     @staticmethod
@@ -54,24 +53,6 @@ class ArtigoDTOMapper:
         )
     
     @staticmethod
-    def to_artigo_busca_dto_from_embedding_result(result: EmbeddingResult) -> ArtigoBuscaDTO:
-        authors = result.metadata.get("authors")
-        if authors is None:
-            authors = ["authors Not Found on EmbeddingResult"]
-
-        return ArtigoBuscaDTO(
-            id=str(result.id),
-            title=result.metadata.get("title", "Title Not Found on EmbeddingResult"),
-            abstract=result.metadata.get("abstract", "Abstract Not Found on EmbeddingResult"),
-            doi=result.metadata.get("doi", "DOI Not Found on EmbeddingResult"),
-            year=result.metadata.get("year", 0),
-            journal=result.metadata.get("journal", "Journal Not Found on EmbeddingResult"),
-            qualis=result.metadata.get("qualis", "Qualis Not Found on EmbeddingResult"),
-            authors=authors,
-            score=result.metadata.get("score", None),
-        )
-
-    @staticmethod
     def to_artigo_busca_dto_list_from_dict(artigos_dict: Dict[str, Dict]) -> List[ArtigoBuscaDTO]:
         artigos_dto = []
         for artigo_data in artigos_dict.values():
@@ -102,9 +83,69 @@ class ArtigoDTOMapper:
         ]
 
     @staticmethod
-    def to_artigo_busca_dto_list(documents: list[Document]) -> list[ArtigoBuscaDTO]:
-        return [ArtigoDTOMapper.to_artigo_busca_dto(doc) for doc in documents]
+    def _normalize_str(value: str) -> str:
+        return value.strip().lower() if value else ""
 
     @staticmethod
-    def to_document_list(artigos: list[ArtigoBuscaDTO]) -> list[Document]:
-        return [ArtigoDTOMapper.to_artigo_selfquery_dto(artigo) for artigo in artigos]
+    def _make_key(title, journal, year, doi) -> str:
+        normalized_title = ArtigoDTOMapper._normalize_str(title)
+        normalized_journal = ArtigoDTOMapper._normalize_str(journal)
+        normalized_year = str(year).strip() if year else ""
+        normalized_doi = ArtigoDTOMapper._normalize_str(doi)
+        return f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
+
+    @staticmethod
+    def _append_authors(entry: ArtigoBuscaDTO, authors) -> None:
+        if (not authors):
+            return
+
+        if entry.authors is None:
+            entry.authors = []
+
+        if isinstance(authors, (list, tuple)):
+            for a in authors:
+                if a and a not in entry.authors:
+                    entry.authors.append(a)
+        else:
+            if authors and authors not in entry.authors:
+                entry.authors.append(authors)
+
+    @staticmethod
+    def to_artigo_busca_dto_from_sql_rows(linhas: List[Dict]) -> List[ArtigoBuscaDTO]:
+        """
+        Agrupa linhas SQL que representam possivelmente o mesmo artigo (mesmo título, journal, year, doi)
+        e converte para uma lista de ArtigoBuscaDTO, agregando autores únicos.
+        """
+        if not linhas:
+            return []
+
+        artigos_map: Dict[str, ArtigoBuscaDTO] = {}
+        for linha in linhas:
+            id_artigo = linha.get('id')
+            title = linha.get('title')
+            journal = linha.get('journal')
+            year = linha.get('year')
+            abstract = linha.get('abstract')
+            doi = linha.get('doi')
+            qualis = linha.get('qualis')
+            authors = linha.get('authors')
+            score = linha.get('similarity_score', None)
+
+            key = ArtigoDTOMapper._make_key(title, journal, year, doi)
+
+            if key not in artigos_map:
+                artigos_map[key] = ArtigoBuscaDTO(
+                    id=str(id_artigo),
+                    title=title,
+                    journal=journal,
+                    year=year,
+                    abstract=abstract or "",
+                    doi=doi,
+                    qualis=qualis,
+                    authors=[],
+                    score=score
+                )
+
+            ArtigoDTOMapper._append_authors(artigos_map[key], authors)
+
+        return list(artigos_map.values())

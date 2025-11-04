@@ -119,6 +119,7 @@ class SelfQueryService:
     def _remove_duplicated(
         self, semantic_result: List[ArtigoBuscaDTO], term_result: List[ArtigoBuscaDTO]
     ) -> List[ArtigoBuscaDTO]:
+        """Remove artigos duplicados entre resultados semânticos e por termos."""
         term_result_ids = {artigo.id for artigo in term_result if artigo.id is not None}
         term_result_titles = {
             artigo.title.lower().strip() for artigo in term_result if artigo.title
@@ -129,12 +130,19 @@ class SelfQueryService:
         for artigo in semantic_result:
             is_duplicate = False
 
+            if artigo.id is None:
+                print(f"Artigo sem ID ignorado na remoção de duplicados: Title='{artigo.title}', DOI='{artigo.doi}'")
+                continue
+
             if (
-                (artigo.id is not None and artigo.id in term_result_ids)
+                (artigo.id in term_result_ids)
                 or (artigo.title and artigo.title.lower().strip() in term_result_titles)
                 or (artigo.doi and artigo.doi.strip() in term_result_dois)
             ):
                 is_duplicate = True
+                print(
+                    f"Artigo duplicado removido da busca semântica: ID={artigo.id}, Title='{artigo.title}', DOI='{artigo.doi}'"
+                )
 
             if not is_duplicate:
                 unique_semantic.append(artigo)

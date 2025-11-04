@@ -1,6 +1,7 @@
 import logging
 from typing import List, Dict, Optional
 from psycopg2 import IntegrityError
+from psycopg2.extras import RealDictCursor
 
 from model.mapper.artigo_dto_mapper import ArtigoDTOMapper
 from banco.conexao_db import Conexao
@@ -21,7 +22,7 @@ class ArtigoDAO:
     def __del__(self):
         Conexao.devolver_conexao(self.conexao)
 
-    def _executar_consulta_artigos(self, sql: str) -> Dict[str, Dict]:
+    def _executar_consulta_artigos(self, sql: str) -> List[ArtigoBuscaDTO]:
         """
         Executa consulta SQL e agrupa resultados por artigo para lidar com múltiplos autores.
         
@@ -33,38 +34,11 @@ class ArtigoDAO:
         """
         try:
             logger.info(f"Executando SQL: {sql}")
-            with self.conexao.cursor() as cursor:
+            with self.conexao.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute(sql)
                 linhas = cursor.fetchall()
             
-            artigos_dict = {}
-            for linha in linhas:
-                (id_artigo, title, journal, year, abstract, doi, qualis, 
-                    author_id, authors, embedding) = linha
-                
-                normalized_title = title.strip().lower() if title else ""
-                normalized_journal = journal.strip().lower() if journal else ""
-                normalized_year = str(year).strip() if year else ""
-                normalized_doi = doi.strip().lower() if doi else ""
-
-                key = f"{normalized_title}|{normalized_journal}|{normalized_year}|{normalized_doi}"
-
-                if key not in artigos_dict:
-                    artigos_dict[key] = {
-                        "id": str(id_artigo),
-                        "title": title,
-                        "journal": journal,
-                        "year": year,
-                        "abstract": abstract or "",
-                        "doi": doi,
-                        "qualis": qualis,
-                        "authors": []
-                    }
-                
-                if authors and not any(author == authors for author in artigos_dict[key]["authors"]):
-                    artigos_dict[key]["authors"].append(authors)
-
-            return artigos_dict
+            return ArtigoDTOMapper.to_artigo_busca_dto_from_sql_rows(linhas)
         except Exception as e:
             self.conexao.rollback()
             logger.exception("Erro ao executar consulta de artigos")
@@ -76,8 +50,7 @@ class ArtigoDAO:
             "ORDER BY id"
         )
         
-        artigos_dict = self._executar_consulta_artigos(sql)
-        return ArtigoDTOMapper.to_artigo_busca_dto_list_from_dict(artigos_dict)
+        return self._executar_consulta_artigos(sql)
 
     def buscar_por_termo(self, termo: str, filtro: Optional[str] = None) -> List[ArtigoBuscaDTO]:
         termo_formatado = f"%{termo.strip()}%"
@@ -93,8 +66,7 @@ class ArtigoDAO:
 
         sql += " ORDER BY year DESC, title ASC"
 
-        artigos_dict = self._executar_consulta_artigos(sql)
-        return ArtigoDTOMapper.to_artigo_busca_dto_list_from_dict(artigos_dict)
+        return self._executar_consulta_artigos(sql)
 
     def salvar_artigo(self, artigo: Artigo) -> Dict:
         sql = (
@@ -234,8 +206,6 @@ class ArtigoDAO:
             "ORDER BY id"
         )
         
-        artigos_dict = self._executar_consulta_artigos(sql)
-        artigos_dto = ArtigoDTOMapper.to_artigo_busca_dto_list_from_dict(artigos_dict)
-        
+        artigos_dto = self._executar_consulta_artigos(sql)        
         logger.info(f"Encontrados {len(artigos_dto)} artigos com embeddings")
         return artigos_dto

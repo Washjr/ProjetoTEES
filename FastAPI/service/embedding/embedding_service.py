@@ -1,17 +1,17 @@
 import hashlib
 import logging
 from typing import List, Dict, Any, Optional
-from dataclasses import dataclass
 
 import psycopg2
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
 from psycopg2.extras import RealDictCursor
 
+from model.dto.artigo_busca_dto import ArtigoBuscaDTO
+from model.mapper.artigo_dto_mapper import ArtigoDTOMapper
 from banco.conexao_db import Conexao
 from config import configuracoes
 from .interface import IEmbeddingService
-
 
 OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSION = 1536
@@ -19,17 +19,6 @@ SIMILARITY_THRESHOLD = 0.3
 CACHE_SIZE = 1000
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class EmbeddingResult:
-    """Resultado de busca por similaridade"""
-
-    id: int
-    content: str
-    similarity_score: float
-    metadata: Dict[str, Any]
-
 
 class EmbeddingService(IEmbeddingService):
     """
@@ -94,7 +83,7 @@ class EmbeddingService(IEmbeddingService):
         limit: int = 10,
         threshold: float = SIMILARITY_THRESHOLD,
         filter: Optional[str] = None,
-    ) -> List[EmbeddingResult]:
+    ) -> List[ArtigoBuscaDTO]:
         """
         Busca artigos similares usando similaridade por cosseno.
         """
@@ -189,7 +178,7 @@ class EmbeddingService(IEmbeddingService):
         limit: int,
         threshold: float,
         filter: Optional[str] = None,
-    ) -> List[EmbeddingResult]:
+    ) -> List[ArtigoBuscaDTO]:
         """Executa busca por similaridade usando PGVector"""
         try:
             with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
@@ -201,7 +190,7 @@ class EmbeddingService(IEmbeddingService):
                     f"    (1 - (embedding <=> '{embedding_str}'::vector)) AS similarity_score "
                     "FROM vw_artigos_completos "
                     "WHERE embedding IS NOT NULL "
-                    f"    AND (1 - (embedding <=> '{embedding_str}'::vector)) >= {threshold}"
+                    f"    AND (1 - (embedding <=> '{embedding_str}'::vector)) >= {threshold} "
                 )
 
                 if filter:
@@ -214,7 +203,7 @@ class EmbeddingService(IEmbeddingService):
                 results = cursor.fetchall()
                 print(f"Resultados encontrados: {len(results)}")
                 
-                return self._convert_to_embedding_results(results)
+                return ArtigoDTOMapper.to_artigo_busca_dto_from_sql_rows(results)
 
         except psycopg2.Error as e:
             logger.error(f"Erro na busca por similaridade: {e}")
@@ -262,39 +251,6 @@ class EmbeddingService(IEmbeddingService):
             content_parts.append(f"Resumo: {abstract}")
 
         return " | ".join(content_parts)
-
-    def _convert_to_embedding_results(
-        self, raw_results: List[Dict]
-    ) -> List[EmbeddingResult]:
-        """Converte resultados do banco para objetos EmbeddingResult"""
-        results = []
-
-        for row in raw_results:
-            authors_str = row.get("authors", "")
-            authors_list = [authors_str] if authors_str else []
-
-            metadata = {
-                "id": row["id"],
-                "title": row.get("title"),
-                "abstract": row.get("abstract"),
-                "doi": row.get("doi"),
-                "year": row.get("year"),
-                "journal": row.get("journal"),
-                "qualis": row.get("qualis"),
-                "author_id": row.get("author_id"),
-                "authors": authors_list,
-            }
-
-            result = EmbeddingResult(
-                id=row["id"],
-                content=f"{row.get('title', '')} - {row.get('abstract', '')}",
-                similarity_score=float(row["similarity_score"]),
-                metadata=metadata,
-            )
-
-            results.append(result)
-
-        return results
 
     def __del__(self):
         """Devolve conexão ao pool"""

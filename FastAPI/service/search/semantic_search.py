@@ -1,11 +1,10 @@
 import logging
-from typing import List, Dict, Optional
+from typing import List, Optional
 
 from dao.artigo_dao import ArtigoDAO
 from dao.pesquisador_dao import PesquisadorDAO
 from service.embedding import EmbeddingService
 from model.dto.artigo_busca_dto import ArtigoBuscaDTO
-from model.mapper.artigo_dto_mapper import ArtigoDTOMapper
 
 SIMILARITY_THRESHOLD = 0.4
 
@@ -29,11 +28,7 @@ class SemanticSearchService:
             limit=k,
             filter=filter
         )
-        
-        artigos_dto = []
-        for result in results:
-            artigo_dto = ArtigoDTOMapper.to_artigo_busca_dto_from_embedding_result(result)
-            artigo_dto.score = result.similarity_score
-            artigos_dto.append(artigo_dto)
-        
-        return artigos_dto
+
+        print(f"Semantic search returned {len(results)} results for query: '{query}' with filter: '{filter}'")
+
+        return results

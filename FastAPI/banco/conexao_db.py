@@ -91,14 +91,42 @@ class Conexao:
         Devolve a conexão ao pool.
         Se fechar=True, descarta a conexão.
         """
-        if cls._pool and not cls._pool.closed and conexao:
+        if not conexao:
+            logger.debug("Conexão ausente. Nada a devolver.")
+            return
+            
+        if not cls._pool or cls._pool.closed:
+            logger.debug("Pool fechado. Fechando conexão diretamente.")
             try:
-                cls._pool.putconn(conexao, close=fechar)
-                logger.debug("Conexão devolvida ao pool: fechar=%s", fechar)
-            except Exception as e:
-                logger.warning("Falha ao devolver conexão ao pool: %s", str(e))
-        else:
-            logger.debug("Pool fechado ou conexão ausente. Conexão não devolvida.")
+                conexao.close()
+            except Exception:
+                pass  # Ignorar erros ao fechar conexão órfã
+            return
+
+        try:
+            # Verificar se a conexão está em estado válido
+            if hasattr(conexao, 'closed') and conexao.closed:
+                logger.warning("Conexão já fechada, forçando descarte")
+                fechar = True
+            
+            # Tentar rollback se houver transação pendente
+            if not fechar and hasattr(conexao, 'get_transaction_status'):
+                status = conexao.get_transaction_status()
+                if status != 0:  # TRANSACTION_STATUS_IDLE
+                    logger.warning("Transação pendente detectada, fazendo rollback")
+                    conexao.rollback()
+            
+            cls._pool.putconn(conexao, close=fechar)
+            logger.debug("Conexão devolvida ao pool: fechar=%s", fechar)
+            
+        except Exception as e:
+            logger.warning("Falha ao devolver conexão ao pool (%s): %s", type(e).__name__, str(e))
+            # Em caso de erro, tentar fechar a conexão diretamente
+            try:
+                conexao.close()
+                logger.debug("Conexão fechada diretamente após erro")
+            except Exception:
+                logger.error("Falha crítica: não foi possível fechar conexão")
 
     @classmethod
     def fechar_todas_conexoes(cls):
