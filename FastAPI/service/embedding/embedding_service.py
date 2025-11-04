@@ -194,7 +194,7 @@ class EmbeddingService(IEmbeddingService):
                 )
 
                 if filter:
-                    base_query += f"WHERE ({filter}) "
+                    base_query += f"AND ({filter}) "
 
                 base_query += f"ORDER BY similarity_score DESC LIMIT {limit}"
 
