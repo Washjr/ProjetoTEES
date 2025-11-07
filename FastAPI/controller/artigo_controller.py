@@ -57,19 +57,6 @@ class ArtigoController:
         )
 
         self.router.add_api_route(
-            "/",
-            self.adicionar,
-            response_model=Artigo,
-            status_code=status.HTTP_201_CREATED,
-            methods=["POST"],
-            summary="Criar artigo",
-            description=(
-                "Cria um novo artigo e retorna o recurso criado com ID gerado. "
-                "Retorna 409 em caso de conflito de chave ou 400 em erro genérico."
-            )
-        )
-
-        self.router.add_api_route(
             "/{id_artigo}",
             self.atualizar,
             response_model=Artigo,
@@ -135,17 +122,6 @@ class ArtigoController:
         except Exception as e:
             logger.error(f"Erro na busca semântica de artigos: {e}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-    def adicionar(self, artigo: Artigo):
-        try:
-            return self.dao.salvar_artigo(artigo)
-        
-        except ValueError as e:
-            logger.warning("Conflito ao criar artigo: %s", e)
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-        except RuntimeError as e:
-            logger.error("Erro ao criar artigo: %s", e)
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     def atualizar(self, id_artigo: str, artigo: Artigo):
         artigo.id_artigo = id_artigo

@@ -4,7 +4,6 @@ import os
 import sys
 from typing import List, Dict, Any
 
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from langchain.chains.query_constructor.base import (
@@ -14,9 +13,7 @@ from langchain.chains.query_constructor.base import (
 from langchain.chains.query_constructor.schema import AttributeInfo
 from langchain_openai import ChatOpenAI
 
-from dao.artigo_dao import ArtigoDAO
 from service.embedding import EmbeddingService
-from banco.conexao_db import Conexao
 
 COLLECTION_NAME = "artigo"
 LLM_MODEL = "gpt-5-mini-2025-08-07"

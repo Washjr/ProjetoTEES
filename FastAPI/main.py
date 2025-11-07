@@ -33,14 +33,27 @@ logging.basicConfig(
 async def lifespan(app: FastAPI):
     Conexao.inicializar_pool()
 
-    ArtigoDAO().sincronizar_resumos()
-    PesquisadorDAO().sincronizar_fotos()
-    
-    embedding_service = EmbeddingService()
-    embedding_stats = embedding_service.update_all_article_embeddings()
-    logging.info(f"Embeddings atualizados: {embedding_stats}")
-    
-    SemanticSearchService().index_all()
+    # Executa operações de sincronização uma por vez para evitar esgotamento do pool
+    try:
+        artigo_dao = ArtigoDAO()
+        artigo_dao.sincronizar_resumos()
+        del artigo_dao
+        
+        pesquisador_dao = PesquisadorDAO()
+        pesquisador_dao.sincronizar_fotos()
+        del pesquisador_dao
+        
+        embedding_service = EmbeddingService()
+        embedding_stats = embedding_service.update_all_article_embeddings()
+        logging.info(f"Embeddings atualizados: {embedding_stats}")
+        del embedding_service
+        
+        semantic_service = SemanticSearchService()
+        semantic_service.index_all()
+        del semantic_service
+        
+    except Exception as e:
+        logging.error(f"Erro durante a inicialização: {e}")
 
     yield
     Conexao.fechar_todas_conexoes()

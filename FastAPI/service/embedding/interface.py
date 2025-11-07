@@ -6,6 +6,7 @@ class IEmbeddingService(ABC):
     """
     Interface para serviços de embedding.
     Define o contrato para operações de embedding seguindo o princípio da inversão de dependência.
+    Focado na geração e processamento de embeddings, deixando operações de banco para o DAO.
     """
 
     @abstractmethod
@@ -40,26 +41,6 @@ class IEmbeddingService(ABC):
         pass
 
     @abstractmethod
-    def search_similar_articles(
-        self, 
-        query_text: str, 
-        limit: int = 10, 
-        threshold: float = 0.7
-    ) -> List[Any]:
-        """
-        Busca artigos similares usando similaridade semântica.
-        
-        Args:
-            query_text: Texto da consulta
-            limit: Número máximo de resultados
-            threshold: Limiar mínimo de similaridade
-            
-        Returns:
-            Lista de resultados ordenados por similaridade
-        """
-        pass
-
-    @abstractmethod
     def update_all_article_embeddings(self) -> Dict[str, int]:
         """
         Atualiza embeddings de todos os artigos.
@@ -75,11 +56,17 @@ class IEmbeddingService(ABC):
         pass
 
     @abstractmethod
-    def get_embedding_stats(self) -> Dict[str, Any]:
+    def build_article_content(self, article: Dict[str, Any]) -> str:
         """
-        Obtém estatísticas sobre embeddings armazenados.
+        Constrói conteúdo textual do artigo para embedding.
         
+        Args:
+            article: Dicionário com dados do artigo
+            
         Returns:
-            Dicionário com estatísticas
+            String com conteúdo formatado para embedding
+            
+        Raises:
+            ValueError: Se o artigo não tiver conteúdo válido
         """
         pass

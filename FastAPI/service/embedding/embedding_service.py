@@ -1,17 +1,14 @@
 import hashlib
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
-import psycopg2
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
-from psycopg2.extras import RealDictCursor
 
-from model.dto.artigo_busca_dto import ArtigoBuscaDTO
-from model.mapper.artigo_dto_mapper import ArtigoDTOMapper
 from banco.conexao_db import Conexao
 from config import configuracoes
 from .interface import IEmbeddingService
+from dao.artigo_dao import ArtigoDAO
 
 OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSION = 1536
@@ -77,34 +74,17 @@ class EmbeddingService(IEmbeddingService):
             logger.error(f"Erro ao armazenar embedding do artigo {article_id}: {e}")
             return False
 
-    def search_similar_articles(
-        self,
-        query_text: str,
-        limit: int = 10,
-        threshold: float = SIMILARITY_THRESHOLD,
-        filter: Optional[str] = None,
-    ) -> List[ArtigoBuscaDTO]:
-        """
-        Busca artigos similares usando similaridade por cosseno.
-        """
-        try:
-            query_embedding = self.generate_embedding(query_text)
-            return self._execute_similarity_search(
-                query_embedding, limit, threshold, filter
-            )
-        except Exception as e:
-            logger.error(f"Erro na busca por similaridade: {e}")
-            return []
-
     def update_all_article_embeddings(self) -> Dict[str, int]:
         """
         Atualiza embeddings de todos os artigos no banco.
         Retorna estatísticas do processo.
         """
+        
         stats = {"success": 0, "errors": 0, "skipped": 0}
 
         try:
-            articles = self._fetch_articles_without_embeddings()
+            artigo_dao = ArtigoDAO()
+            articles = artigo_dao.listar_artigos_sem_embeddings()
 
             for article in articles:
                 if self._process_article_embedding(article):
@@ -118,29 +98,40 @@ class EmbeddingService(IEmbeddingService):
 
         return stats
 
+    def _process_article_embedding(self, article: Dict[str, Any]) -> bool:
+        """Processa embedding de um artigo específico"""
+        
+        try:
+            content = self.build_article_content(article)
+            embedding = self.generate_embedding(content)
+            
+            artigo_dao = ArtigoDAO()
+            return artigo_dao.atualizar_embedding_artigo(article["id_artigo"], embedding)
+
+        except Exception as e:
+            logger.error(f"Erro ao processar artigo {article.get('id_artigo')}: {e}")
+            return False
+
     def clear_cache(self) -> None:
         """Limpa o cache de embeddings"""
         self._cache.clear()
         logger.info("Cache de embeddings limpo")
 
-    def get_embedding_stats(self) -> Dict[str, Any]:
-        """Retorna estatísticas sobre embeddings armazenados"""
-        try:
-            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute("""
-                    SELECT 
-                        COUNT(*) as total_articles,
-                        COUNT(embedding) as articles_with_embeddings,
-                        COUNT(*) - COUNT(embedding) as articles_without_embeddings
-                    FROM artigo
-                """)
+    def build_article_content(self, article: Dict[str, Any]) -> str:
+        """Constrói conteúdo textual do artigo para embedding"""
+        title = (article.get("nome") or "").strip()
+        abstract = (article.get("resumo") or "").strip()
 
-                result = cursor.fetchone()
-                return dict(result) if result else {}
+        if not title and not abstract:
+            raise ValueError("Artigo sem título ou resumo")
 
-        except Exception as e:
-            logger.error(f"Erro ao obter estatísticas: {e}")
-            return {}
+        content_parts = []
+        if title:
+            content_parts.append(f"Título: {title}")
+        if abstract:
+            content_parts.append(f"Resumo: {abstract}")
+
+        return " | ".join(content_parts)
 
     def _generate_text_hash(self, text: str) -> str:
         """Gera hash único para o texto"""
@@ -158,102 +149,15 @@ class EmbeddingService(IEmbeddingService):
         self, article_id: int, embedding: List[float]
     ) -> bool:
         """Salva embedding no banco de dados"""
+        
         try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(
-                    "UPDATE artigo SET embedding = %s WHERE id_artigo = %s",
-                    (embedding, article_id),
-                )
-                self.connection.commit()
-                return cursor.rowcount > 0
-
-        except psycopg2.Error as e:
-            logger.error(f"Erro ao salvar embedding no banco: {e}")
-            self.connection.rollback()
-            return False
-
-    def _execute_similarity_search(
-        self,
-        query_embedding: List[float],
-        limit: int,
-        threshold: float,
-        filter: Optional[str] = None,
-    ) -> List[ArtigoBuscaDTO]:
-        """Executa busca por similaridade usando PGVector"""
-        try:
-            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
-                embedding_str = str(query_embedding)
-                
-                base_query = (
-                    "SELECT "
-                    "    *, "
-                    f"    (1 - (embedding <=> '{embedding_str}'::vector)) AS similarity_score "
-                    "FROM vw_artigos_completos "
-                    "WHERE embedding IS NOT NULL "
-                    f"    AND (1 - (embedding <=> '{embedding_str}'::vector)) >= {threshold} "
-                )
-
-                if filter:
-                    base_query += f"AND ({filter}) "
-
-                base_query += f"ORDER BY similarity_score DESC LIMIT {limit}"
-
-                print(f"Executando query com threshold: {threshold}, limit: {limit}")
-                cursor.execute(base_query)
-                results = cursor.fetchall()
-                print(f"Resultados encontrados: {len(results)}")
-                
-                return ArtigoDTOMapper.to_artigo_busca_dto_from_sql_rows(results)
-
-        except psycopg2.Error as e:
-            logger.error(f"Erro na busca por similaridade: {e}")
-            return []
-
-    def _fetch_articles_without_embeddings(self) -> List[Dict[str, Any]]:
-        """Busca artigos que não possuem embeddings"""
-        try:
-            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute("""
-                    SELECT id_artigo, nome, resumo 
-                    FROM artigo 
-                    WHERE embedding IS NULL 
-                        AND nome IS NOT NULL
-                """)
-
-                return cursor.fetchall()
-
-        except psycopg2.Error as e:
-            logger.error(f"Erro ao buscar artigos sem embeddings: {e}")
-            return []
-
-    def _process_article_embedding(self, article: Dict[str, Any]) -> bool:
-        """Processa embedding de um artigo específico"""
-        try:
-            content = self._build_article_content(article)
-            return self.store_article_embedding(article["id_artigo"], content)
-
+            artigo_dao = ArtigoDAO()
+            return artigo_dao.atualizar_embedding_artigo(article_id, embedding)
         except Exception as e:
-            logger.error(f"Erro ao processar artigo {article.get('id_artigo')}: {e}")
+            logger.error(f"Erro ao salvar embedding no banco: {e}")
             return False
-
-    def _build_article_content(self, article: Dict[str, Any]) -> str:
-        """Constrói conteúdo textual do artigo para embedding"""
-        title = (article.get("nome") or "").strip()
-        abstract = (article.get("resumo") or "").strip()
-
-        if not title and not abstract:
-            raise ValueError("Artigo sem título ou resumo")
-
-        content_parts = []
-        if title:
-            content_parts.append(f"Título: {title}")
-        if abstract:
-            content_parts.append(f"Resumo: {abstract}")
-
-        return " | ".join(content_parts)
 
     def __del__(self):
         """Devolve conexão ao pool"""
         if hasattr(self, "connection"):
-            Conexao.devolver_conexao(self.connection)
             Conexao.devolver_conexao(self.connection)
